@@ -595,16 +595,22 @@ body.touch #plug[data-gv=mix]{grid-template-rows:auto minmax(0,1fr)}
 #plug.gdr8 #engBody .tog{font-size:14px}
 #plug.gdr8 #engBody .sec .in{gap:12px 10px;padding:10px 12px}
 
-/* SAMPLER track, SYNTH view: no keyboard strip (its pads are on screen), bigger pads, every knob the size of the other engines' */
+/* SAMPLER track, SYNTH view: no keyboard strip (its pads are on screen), bigger pads, every knob full size;
+   the whole-instrument strip sits under the pads; if the screen is still too short, the page scrolls instead of cutting the bottom */
 #plug.gsmp footer{display:none}
 body.touch #plug.gsmp{grid-template-rows:auto minmax(0,1fr) auto}
-#plug.gsmp .spad{height:104px}
-#plug.gsmp .spad b{font-size:17px}#plug.gsmp .spad span{font-size:15px}
-#plug.gsmp .spwrap{grid-template-columns:minmax(380px,470px) minmax(0,1fr)}
-#plug.gsmp .spall .fwknob,#plug.gsmp .spctl .fwknob{width:70px;height:70px}
-#plug.gsmp .spall .ctl{width:80px}#plug.gsmp .spall .ctl .nm{font-size:12.5px}#plug.gsmp .spall .ctl .vl{font-size:13px}
-#plug.gsmp .spall .ctl.sl{width:130px}#plug.gsmp .spall select{font-size:14px;min-height:40px}
+#plug .spleft>.spall{margin-top:10px;flex-wrap:wrap}
+#plug .spleft>.spall .grp{flex-wrap:wrap}
+#plug.gsmp .spad{height:88px}
+#plug.gsmp .spad b{font-size:16px}#plug.gsmp .spad span{font-size:14px}
+#plug.gsmp .spwrap{grid-template-columns:minmax(330px,400px) minmax(0,1fr);gap:16px}
+#plug.gsmp .spwave{height:84px}
+#plug.gsmp .spall .fwknob,#plug.gsmp .spctl .fwknob{width:66px;height:66px}
+#plug.gsmp .spall .ctl{width:78px}#plug.gsmp .spall .ctl .nm{font-size:12.5px}#plug.gsmp .spall .ctl .vl{font-size:13px}
+#plug.gsmp .spall .ctl.sl{width:120px}#plug.gsmp .spall select{font-size:14px;min-height:40px}
 #plug.gsmp .spall .grp>.cap{font-size:12.5px}
+#plug.gsmp .spctl{gap:8px 16px}
+#plug.gsmp #engWin .fitwrap{overflow-y:auto!important;touch-action:pan-y;-webkit-overflow-scrolling:touch}
 </style>
 
 <div id="plug" data-gv="pat">
@@ -4787,10 +4793,13 @@ function show(t,kind){const prevT=view.t;view.t=t;view.kind=kind;if(prevT!==t)se
   else{const id=tr.eng;if(!__eng||__eng.id!==id||P!==tr.ep){panel(id,tr.ep);tr.ep=P;node=routed}
     if(kind==='pat')drawPat();else drawMix()}
   engB.textContent='ENGINE \u00B7 '+META[tr.eng].name+' \u25BE';
-  drawRail();drawPatBtns();__lastKey='';__applyMode(true)}
+  drawRail();drawPatBtns();smpView();__lastKey='';__applyMode(true)}
 
 // SAMPLER track, SYNTH view: its pads are on screen, so the keyboard strip gives its room to them, unless CHROMATIC is on
-function smpView(){const tr=T[view.t];const on=view.kind==='syn'&&tr.eng==='sp64'&&Math.round(tr.ep[META.sp64.IDX.chrom])===0;
+function smpView(){const tr=T[view.t];
+  // the whole-instrument strip goes under the pads, where there is room (the controls column then needs three rows)
+  if(view.kind==='syn'&&tr.eng==='sp64'){const all=engBody.querySelector('.spall'),left=engBody.querySelector('.spleft');if(all&&left&&all.parentNode!==left)left.appendChild(all)}
+  const on=view.kind==='syn'&&tr.eng==='sp64'&&Math.round(tr.ep[META.sp64.IDX.chrom])===0;
   if(plug.classList.contains('gsmp')!==on){plug.classList.toggle('gsmp',on);fitAll()}}
 
 // ---------- PATTERN view ----------
