@@ -580,6 +580,31 @@ body.touch #plug[data-gv=mix]{grid-template-rows:auto minmax(0,1fr)}
 @media (max-width:1150px){#plug .brand .brandlogo{width:112px;height:20px}}
 /* portrait: the top bar takes two lines instead of running off the screen */
 @media (max-width:900px){#plug header{flex-wrap:wrap!important}}
+
+.gtools .gacc{width:150px;accent-color:var(--tc)}
+
+/* DR8 track, SYNTH view: only its sounds, so they get the room */
+#plug.gdr8 #engBody .sec h2{font-size:15px;padding:7px 12px}
+#plug.gdr8 #engBody .trkb{font-size:15px;padding:12px 14px;min-height:48px}
+#plug.gdr8 #engBody .fwknob{width:74px;height:74px}
+#plug.gdr8 #engBody .ctl{width:86px}
+#plug.gdr8 #engBody .ctl .nm{font-size:13px}#plug.gdr8 #engBody .ctl .vl{font-size:13.5px}
+#plug.gdr8 #engBody .ctl.sl{width:150px}#plug.gdr8 #engBody select{font-size:17px;min-height:48px}
+#plug.gdr8 #engBody .hitb{min-height:48px;min-width:90px;font-size:15px}
+#plug.gdr8 #engBody .grp>.cap{font-size:13px}
+#plug.gdr8 #engBody .tog{font-size:14px}
+#plug.gdr8 #engBody .sec .in{gap:12px 10px;padding:10px 12px}
+
+/* SAMPLER track, SYNTH view: no keyboard strip (its pads are on screen), bigger pads, every knob the size of the other engines' */
+#plug.gsmp footer{display:none}
+body.touch #plug.gsmp{grid-template-rows:auto minmax(0,1fr) auto}
+#plug.gsmp .spad{height:104px}
+#plug.gsmp .spad b{font-size:17px}#plug.gsmp .spad span{font-size:15px}
+#plug.gsmp .spwrap{grid-template-columns:minmax(380px,470px) minmax(0,1fr)}
+#plug.gsmp .spall .fwknob,#plug.gsmp .spctl .fwknob{width:70px;height:70px}
+#plug.gsmp .spall .ctl{width:80px}#plug.gsmp .spall .ctl .nm{font-size:12.5px}#plug.gsmp .spall .ctl .vl{font-size:13px}
+#plug.gsmp .spall .ctl.sl{width:130px}#plug.gsmp .spall select{font-size:14px;min-height:40px}
+#plug.gsmp .spall .grp>.cap{font-size:12.5px}
 </style>
 
 <div id="plug" data-gv="pat">
@@ -4607,7 +4632,7 @@ const routed={port:{postMessage(m){const tr=T[view.t];if(!tr)return;
     if(m.t==='on'&&tr.eng==='dr8'){const k=DR8_GM[m.n]!=null?DR8_GM[m.n]:((m.n-36)%8+8)%8;m={t:'hit',tr:k}}
     if(m.t==='off'&&tr.eng==='dr8')return;
     liveNote(view.t,m);wake(tr);if(tr.syn)tr.syn.port.postMessage(m);return}
-  const n=view.kind==='fx'?tr.fx:tr.syn;if(m.t==='p'){dirty();if(view.kind!=='fx'&&tr.eng==='dr8')drawRail()}if(n)n.port.postMessage(m);if(view.kind==='fx'&&(m.t==='p'||m.t==='perm'))routeFx(view.t)}}};
+  const n=view.kind==='fx'?tr.fx:tr.syn;if(m.t==='p'){dirty();if(view.kind!=='fx'&&tr.eng==='dr8')drawRail();if(tr.eng==='sp64')smpView()}if(n)n.port.postMessage(m);if(view.kind==='fx'&&(m.t==='p'||m.t==='perm'))routeFx(view.t)}}};
 node=routed;
 // keys pressed while a step is selected (and not recording) write that step's note(s)
 const heldKeys=new Set();
@@ -4629,7 +4654,7 @@ async function mod(id){if(WASM){if(!loaded.__w)loaded.__w=ctx.audioWorklet.addMo
   if(loaded[id])return loaded[id];const url=URL.createObjectURL(new Blob([META[id].def.worklet],{type:'application/javascript'}));
   loaded[id]=ctx.audioWorklet.addModule(url);return loaded[id]}
 const opts=(m,arr,input)=>({numberOfInputs:input?1:0,numberOfOutputs:1,outputChannelCount:[2],processorOptions:WASM?{id:m.id,P:Array.from(arr),bpmI:m.IDX.bpm}:{IDX:m.IDX,D:m.D,DSTP:m.DSTP,P:Array.from(arr)}});
-function setBpmIn(tr){const s=META[tr.eng],f=META.fx;if(s.IDX.bpm!=null)tr.ep[s.IDX.bpm]=song.bpm;tr.fp[f.IDX.bpm]=song.bpm}
+function setBpmIn(tr){const s=META[tr.eng],f=META.fx;if(s.IDX.bpm!=null)tr.ep[s.IDX.bpm]=song.bpm;tr.fp[f.IDX.bpm]=song.bpm;if(tr.eng==='dr8')tr.ep[s.IDX.swing]=Math.min(1,song.swing)}   // the DR8 swings with the song (same delay of the odd steps)
 // Saving the iPad's one audio core: a track that has made no sound for 3 s sleeps (its engine and FX stop computing) and wakes
 // on its next note; an FX chain with no effect is bypassed (same level: an empty chain adds 1.253)
 const fxEmpty=tr=>{const I=META.fx.IDX;for(let q=0;q<8;q++)if(Math.round(tr.fp[I['slot'+q]])>0)return false;return true};
@@ -4717,7 +4742,7 @@ function gdrag(label,get,set,fmtv,step){const b=el('div','dbox');b.tabIndex=0;b.
   b.addEventListener('pointermove',e=>{if(b.hasPointerCapture(e.pointerId)){set(v0+(y0-e.clientY)*step);up()}});
   b.addEventListener('keydown',e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){set(get()+(e.key==='ArrowUp'?1:-1)*step*4);up();e.preventDefault()}});up();return b}
 let bpmT=0;const tempoB=gdrag('TEMPO',()=>song.bpm,v=>{song.bpm=Math.round(Math.min(200,Math.max(40,v))*2)/2;clearTimeout(bpmT);bpmT=setTimeout(()=>{T.forEach(tr=>{setBpmIn(tr);if(tr.syn)tr.syn.port.postMessage({t:'p',p:tr.ep});if(tr.fx)tr.fx.port.postMessage({t:'p',p:tr.fp})});views.forEach(w=>w.update());dirty()},60)},v=>v.toFixed(v%1?1:0),.25);
-const swingB=gdrag('SWING',()=>song.swing,v=>{song.swing=Math.min(.75,Math.max(0,v));dirty()},v=>Math.round(v*100)+'%',.004);
+let swT=0;const swingB=gdrag('SWING',()=>song.swing,v=>{song.swing=Math.min(.75,Math.max(0,v));dirty();clearTimeout(swT);swT=setTimeout(()=>T.forEach(tr=>{if(tr.eng==='dr8'){setBpmIn(tr);if(tr.syn)tr.syn.port.postMessage({t:'p',p:tr.ep})}}),60)},v=>Math.round(v*100)+'%',.004);
 tp.append(playB,recB,tempoB,swingB);startBtn.after(tp);
 // view tabs and the 8 patterns
 const VIEWS=[['pat','PATTERN'],['syn','SYNTH'],['fx','FX'],['mix','MIX']];const vtabs=el('div','gviews');
@@ -4754,13 +4779,19 @@ function panel(id,vals){__listeners.forEach(([t,f])=>removeEventListener(t,f));_
   try{switchEngine(id)}finally{switching=false}clearSaved()}
 function show(t,kind){const prevT=view.t;view.t=t;view.kind=kind;if(prevT!==t)selStep=-1;const tr=T[t];plug.dataset.gv=kind;plug.style.setProperty('--tc',COL[t]);
   [...vtabs.children].forEach(b=>b.classList.toggle('on',b.dataset.k===kind));
+  plug.classList.toggle('gdr8',kind==='syn'&&tr.eng==='dr8');smpView();   // the DR8's sound page, larger (its grid is in PATTERN)
   if(window.__SMP)__SMP.inst='g'+t;
   if(kind==='syn'||kind==='fx'){const id=kind==='fx'?'fx':tr.eng;panel(id,kind==='fx'?tr.fp:tr.ep);if(kind==='fx')tr.fp=P;else tr.ep=P;node=routed;
-    engName.textContent='TRACK '+(t+1)+' · '+(kind==='fx'?'FX':META[tr.eng].name);engDesc.textContent=kind==='fx'?'8-box effect chain after '+META[tr.eng].name:META[tr.eng].def.desc}
+    engName.textContent='TRACK '+(t+1)+' · '+(kind==='fx'?'FX':META[tr.eng].name);engDesc.textContent=kind==='fx'?'8-box effect chain after '+META[tr.eng].name:META[tr.eng].def.desc;
+    if(kind==='syn'&&tr.eng==='dr8'&&__pages.PATTERN){__showSub('VOICES');__pages.PATTERN.remove();delete __pages.PATTERN;[...__pages.VOICES.querySelectorAll('.sec')].forEach(x=>{const h=x.querySelector('h2');if(h&&/WHAT THE KNOBS/.test(h.textContent))x.remove()});const b=subTabs.querySelector('[data-n="PATTERN"]');if(b)b.remove();subTabs.hidden=subTabs.children.length<2}}
   else{const id=tr.eng;if(!__eng||__eng.id!==id||P!==tr.ep){panel(id,tr.ep);tr.ep=P;node=routed}
     if(kind==='pat')drawPat();else drawMix()}
   engB.textContent='ENGINE \u00B7 '+META[tr.eng].name+' \u25BE';
   drawRail();drawPatBtns();__lastKey='';__applyMode(true)}
+
+// SAMPLER track, SYNTH view: its pads are on screen, so the keyboard strip gives its room to them, unless CHROMATIC is on
+function smpView(){const tr=T[view.t];const on=view.kind==='syn'&&tr.eng==='sp64'&&Math.round(tr.ep[META.sp64.IDX.chrom])===0;
+  if(plug.classList.contains('gsmp')!==on){plug.classList.toggle('gsmp',on);fitAll()}}
 
 // ---------- PATTERN view ----------
 let patCells=[];
@@ -4782,7 +4813,9 @@ function drawPat(){const t=view.t,tr=T[t];gpanel.innerHTML='';patCells=[];const 
   const pb=btn('PASTE',()=>{if(!clip)return;if(clip.drum&&tr.eng==='dr8'){DRUMI.forEach((i,k)=>tr.ep[i]=clip.drum[k]);if(tr.syn)tr.syn.port.postMessage({t:'p',p:tr.ep})}
     else if(clip.pat&&tr.eng!=='dr8')tr.pats[song.pat]=JSON.parse(JSON.stringify(clip.pat));dirty();drawPat();drawRail();drawPatBtns()});pb.disabled=!clip||(!!clip.drum)!==(tr.eng==='dr8');
   btn('CLEAR',()=>{if(tr.eng==='dr8'){DRUMI.forEach(i=>tr.ep[i]=0);if(tr.syn)tr.syn.port.postMessage({t:'p',p:tr.ep})}else tr.pats[song.pat]=emptyPat();selStep=-1;dirty();drawPat();drawRail();drawPatBtns()});
-  if(tr.eng==='dr8'){drawDrumGrid(body,tr);return}
+  if(tr.eng==='dr8'){const ai=META.dr8.IDX.accent;const ac=el('input');ac.type='range';ac.min=0;ac.max=1;ac.step=.01;ac.value=tr.ep[ai];ac.setAttribute('aria-label','Accent');ac.className='gacc';
+    const av=el('span','gval',Math.round(tr.ep[ai]*100)+'%');ac.oninput=()=>{tr.ep[ai]=+ac.value;av.textContent=Math.round(ac.value*100)+'%';if(tr.syn)tr.syn.port.postMessage({t:'p',p:tr.ep});dirty()};
+    tools.insertBefore(av,tools.firstChild);tools.insertBefore(ac,av);tools.insertBefore(el('span','gcap','ACCENT'),ac);drawDrumGrid(body,tr);return}
   // 16 steps
   const grid=el('div','gsteps');body.appendChild(grid);
   for(let k=0;k<NST;k++){const st=p.steps[k];const c=el('button','gstep'+(st&&st.length?' hit':'')+(k===selStep?' sel':'')+(k>=p.len?' out':'')+(k%4===0?' beat':''));
