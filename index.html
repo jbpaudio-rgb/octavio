@@ -573,6 +573,13 @@ body.touch #plug[data-gv=mix]{grid-template-rows:auto minmax(0,1fr)}
 .gsel.gmc{min-height:38px;max-width:none;width:auto;padding:4px 6px;font-size:14px}
 .gch>.gsel.gmc{width:100%}
 
+
+/* the octavio logo: a fixed size (Safari can squeeze an SVG of automatic width to nothing in a flex row) */
+#plug .brand{flex:none}
+#plug .brand .brandlogo{display:block;flex:none;width:123px;height:22px}
+@media (max-width:1150px){#plug .brand .brandlogo{width:112px;height:20px}}
+/* portrait: the top bar takes two lines instead of running off the screen */
+@media (max-width:900px){#plug header{flex-wrap:wrap!important}}
 </style>
 
 <div id="plug" data-gv="pat">
