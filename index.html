@@ -903,7 +903,7 @@ class Vact extends AudioWorkletProcessor{
   this.phM=0;this.phP=0;this.cc=0;this.held=[];this.gate=false;this.edge=false;this.vel=.8;this.note=60;this.cur=220;this.tgt=220;
   this.src=new Float32Array(21);this.off=new Float32Array(this.p.length);this.lp=[0,.33,.66,.5];this.lr=[0,0,0,0];this.sh2p=0;this.sh2t=0;this.sh2v=0;this.shp=0;this.sht=0;this.shv=0;this.clock=0;this.step=0;
   this.sm=null;this.lv=[0,0,0,0];this.pn=[0,0,0,0];this.ms=0;this.dl=0;this.dr=0;this.xl=0;this.xr=0;this.rs=1234567;this.mc=0;
-  this.port.onmessage=e=>{const m=e.data;if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);else if(m.t==='on'){this.held.push(m.n);this.note=m.n;this.tgt=440*Math.pow(2,(m.n-69)/12);this.vel=m.v;if(!this.gate)this.cur=this.cur;this.gate=true;this.edge=true}
+  this.port.onmessage=e=>{const m=e.data;if(m.t==='sleep'){this._sleep=!!m.on;if(!m.on&&this._xc&&this._xp!==undefined)this.clock=this._xp;return}if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);else if(m.t==='on'){this.held.push(m.n);this.note=m.n;this.tgt=440*Math.pow(2,(m.n-69)/12);this.vel=m.v;if(!this.gate)this.cur=this.cur;this.gate=true;this.edge=true}
    else if(m.t==='off'){this.held=this.held.filter(x=>x!==m.n);if(!this.held.length)this.gate=false;else{this.note=this.held[this.held.length-1];this.tgt=440*Math.pow(2,(this.note-69)/12)}}
    else if(m.t==='alloff'){this.held=[];this.gate=false}}}
  rnd(){this.rs=(this.rs*1664525+1013904223)>>>0;return this.rs/4294967296}
@@ -940,7 +940,7 @@ class Vact extends AudioWorkletProcessor{
   this.spmd=Math.round(this.g('spmode'));this.spei=Math.round(this.g('spevenin'));this.sppe=this.g('sppreeven');this.sppo=this.g('sppreodd');this.spst=Math.round(this.g('spstereo'));
   const gs=glideS(this.g('glide'));this.cur+=(gs<=0?1:1-Math.exp(-dt/gs))*(this.tgt-this.cur);
   if(!this.sm)this.sm=Object.assign({},this.T)}
- process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,fsO=this.fs*OS;
+ process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}if(this._sleep){const o_=outs[0];for(let c=0;c<o_.length;c++)o_[c].fill(0);return true}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,fsO=this.fs*OS;
   for(let i=0;i<n;i++){if(this.cc===0)this.ctrl();this.cc=(this.cc+1)%CT;
    const T=this.T,S=this.sm,k=.004;for(const key in T)S[key]+=k*(T[key]-S[key]);
    const fP=this.cur*Math.pow(2,S.pi/12);let fM=this.mk?this.cur*modRatio(S.mf)*Math.pow(2,S.mfi/12):modFreqHz(S.mf)*Math.pow(2,S.mfi/12);fM=Math.min(fM,fsO*.2);
@@ -1096,7 +1096,7 @@ class MiniVoice extends AudioWorkletProcessor{
   this.held=[];this.gate=false;this.edge=false;this.rel=false;this.vel=.8;this.note=48;this.cur=130.8;this.tgt=130.8;this.curN=48;
   this.src=new Float32Array(17);this.off=new Float32Array(this.p.length);this.lp=[0,.33,.66,.5];this.lr=[0,0,0,0];this.sh2p=0;this.sh2t=0;this.sh2v=0;this.shp=0;this.sht=0;this.shv=0;this.clock=0;this.step=0;
   this.sm=null;this.ms=0;this.dl=0;this.dr=0;this.dr2=0;this.xl=0;this.xr=0;this.rs=987654321;this.mc=0;this.seqGate=false;
-  this.port.onmessage=e=>{const m=e.data;if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);
+  this.port.onmessage=e=>{const m=e.data;if(m.t==='sleep'){this._sleep=!!m.on;if(!m.on&&this._xc&&this._xp!==undefined)this.clock=this._xp;return}if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);
    else if(m.t==='on'){const was=this.held.length>0;this.held.push(m.n);this.vel=m.v;this.retarget();if(!was){this.edge=true;this.gate=true}}
    else if(m.t==='off'){this.held=this.held.filter(x=>x!==m.n);if(!this.held.length){this.gate=false;this.rel=true}else this.retarget()}
    else if(m.t==='alloff'){this.held=[];this.gate=false;this.rel=true}}}
@@ -1144,7 +1144,7 @@ class MiniVoice extends AudioWorkletProcessor{
    case 2:v=(2*p-1-blep(p,dt))*(rev?-1:1);break;
    default:{const pw=w===3?.5:w===4?.3:.1;let t2=p-pw;if(t2<0)t2+=1;v=(p<pw?1:-1)+blep(p,dt)-blep(t2,dt);v-=(2*pw-1);v*=w===5?1.25:1}}
   return v}
- process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,fsO=this.fs*OS;
+ process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}if(this._sleep){const o_=outs[0];for(let c=0;c<o_.length;c++)o_[c].fill(0);return true}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,fsO=this.fs*OS;
   for(let i=0;i<n;i++){if(this.mc%CT===0)this.ctrl();this.mc++;
    const T=this.T,S=this.sm,k=.003;for(const key in T)S[key]+=k*(T[key]-S[key]);
    const fe=this.src[11],le=this.src[12];
@@ -1308,7 +1308,7 @@ class Pro extends AudioWorkletProcessor{
   this.v=[];for(let i=0;i<NV;i++)this.v.push(new Voice(i,()=>this.rnd()));this.dec=new Dec();this.held=[];this.clockAge=0;
   this.src=new Float32Array(17);this.off=new Float32Array(this.p.length);this.lp=[0,.33,.66,.5];this.lr=[0,0,0,0];this.sh2p=0;this.sh2t=0;this.sh2v=0;this.shp=0;this.sht=0;this.shv=0;this.clock=0;this.step=0;
   this.wl=0;this.wrnd=0;this.sm=null;this.ms=0;this.dl=0;this.xl=0;this.mc=0;this.pc=0;this.seqGate=false;this.lastV=0;this.lastNote=60;this.lastVel=.8;
-  this.port.onmessage=e=>{const m=e.data;if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);else if(m.t==='on')this.noteOn(m.n,m.v);else if(m.t==='off')this.noteOff(m.n);
+  this.port.onmessage=e=>{const m=e.data;if(m.t==='sleep'){this._sleep=!!m.on;if(!m.on&&this._xc&&this._xp!==undefined)this.clock=this._xp;return}if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);else if(m.t==='on')this.noteOn(m.n,m.v);else if(m.t==='off')this.noteOff(m.n);
    else if(m.t==='alloff'){this.held=[];for(const v of this.v){v.gate=false;v.fe.off();v.ae.off()}}}}
  rnd(){this.rs=(this.rs*1664525+1013904223)>>>0;return this.rs/4294967296}
  g(id){return this.p[this.I[id]]}
@@ -1362,7 +1362,7 @@ class Pro extends AudioWorkletProcessor{
    v.fe.tick(dt,fa*e,fd*e,fsu,fr*e);v.ae.tick(dt,aa*e,ad*e,asu,ar*e);v.curN+=ga*(v.tgtN-v.curN);
    v.dr+=(this.rnd()-.5)*.03;v.dr*=.996}
   if(!this.sm)this.sm=Object.assign({},this.T)}
- process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,fsO=this.fs*OS;
+ process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}if(this._sleep){const o_=outs[0];for(let c=0;c<o_.length;c++)o_[c].fill(0);return true}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,fsO=this.fs*OS;
   for(let i=0;i<n;i++){if(this.mc%CT===0)this.ctrl();this.mc++;
    const T=this.T,S=this.sm,k=.003;for(const key in T)S[key]+=k*(T[key]-S[key]);
    const sw=this.sw,V=this.V,wm=this.wm;
@@ -1526,7 +1526,7 @@ class Arp extends AudioWorkletProcessor{
   this.held=[];this.gate=false;this.edge=false;this.rel=false;this.vel=.8;this.c1=48;this.c2=48;this.t1=48;this.t2=48;
   this.src=new Float32Array(19);this.off=new Float32Array(this.p.length);this.lp=[0,.33,.66,.5];this.lr=[0,0,0,0];this.mshp=0;this.msht=0;this.mshv=0;this.sh2p=0;this.sh2t=0;this.sh2v=0;
   this.clock=0;this.step=0;this.sm=null;this.ms=0;this.dl=[0,0];this.xl=[0,0];this.mc=0;this.pc=0;this.seqGate=false;
-  this.port.onmessage=e=>{const m=e.data;if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);
+  this.port.onmessage=e=>{const m=e.data;if(m.t==='sleep'){this._sleep=!!m.on;if(!m.on&&this._xc&&this._xp!==undefined)this.clock=this._xp;return}if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);
    else if(m.t==='on'){this.held=this.held.filter(x=>x!==m.n);this.held.push(m.n);this.vel=m.v;this.retarget();this.edge=true;this.gate=true}
    else if(m.t==='off'){this.held=this.held.filter(x=>x!==m.n);if(!this.held.length){this.gate=false;this.rel=true}else this.retarget()}
    else if(m.t==='alloff'){this.held=[];this.gate=false;this.rel=true}}}
@@ -1574,7 +1574,7 @@ class Arp extends AudioWorkletProcessor{
   this.revfb=.55+this.g('revdec')*.38;this.mt=this.val('master');
   if(!this.sm)this.sm=Object.assign({},this.T)}
  sampleSH(){this.shv=Math.round(this.g('shin'))===1?this.last.v3:this.rnd()*2-1}
- process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,fsO=this.fs*OS;
+ process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}if(this._sleep){const o_=outs[0];for(let c=0;c<o_.length;c++)o_[c].fill(0);return true}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,fsO=this.fs*OS;
   for(let i=0;i<n;i++){if(this.mc%CT===0)this.ctrl();this.mc++;
    const T=this.T,S=this.sm,sw=this.sw,k=.003;for(const key in T)S[key]+=k*(T[key]-S[key]);
    const adsr=this.src[11],ar=this.src[12],sh=this.shOut;
@@ -1764,7 +1764,7 @@ class PolyBase extends AudioWorkletProcessor{
   this.v=[];for(let i=0;i<NV;i++)this.v.push(this.makeVoice(i));this.held=[];this.clockAge=0;this.bend=0;
   this.src=new Float32Array(nsrc);this.off=new Float32Array(this.p.length);this.lp=[0,.33,.66,.5];this.lr=[0,0,0,0];this.shp=0;this.sht=0;this.shv=0;this.sh2p=0;this.sh2t=0;this.sh2v=0;
   this.clock=0;this.step=0;this.ms=0;this.dl=[0,0];this.xl=[0,0];this.mc=0;this.pc=0;this.seqGate=false;this.lastNote=60;this.lastVel=.8;this.out2=[0,0];
-  this.port.onmessage=e=>{const m=e.data;if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);else if(m.t==='on')this.noteOn(m.n,m.v);else if(m.t==='off')this.noteOff(m.n);
+  this.port.onmessage=e=>{const m=e.data;if(m.t==='sleep'){this._sleep=!!m.on;if(!m.on&&this._xc&&this._xp!==undefined)this.clock=this._xp;return}if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);else if(m.t==='on')this.noteOn(m.n,m.v);else if(m.t==='off')this.noteOff(m.n);
    else if(m.t==='bend')this.bend=m.v;else if(m.t==='alloff'){this.held=[];for(const v of this.v)this.release(v)}}}
  rnd(){this.rs=(this.rs*1664525+1013904223)>>>0;return this.rs/4294967296}
  g(id){return this.p[this.I[id]]}
@@ -1797,7 +1797,7 @@ class PolyBase extends AudioWorkletProcessor{
   for(let m=0;m<8;m++)add(Math.round(this.g('m'+m+'src')),Math.round(this.g('m'+m+'dst')),this.g('m'+m+'amt'));
   for(let k=0;k<6;k++)add(5+k,Math.round(this.g('s'+k+'dst')),this.g('s'+k+'amt'));
   this.ectrl(dt)}
- process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,out=this.out2;
+ process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}if(this._sleep){const o_=outs[0];for(let c=0;c<o_.length;c++)o_[c].fill(0);return true}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,out=this.out2;
   for(let i=0;i<n;i++){if(this.mc%CT===0)this.ctrl();this.mc++;
    this.render(out);this.ms+=.004*(this.val('master')-this.ms);let sl=out[0]*this.ms,sr=out[1]*this.ms;
    const yl=sl-this.xl[0]+.9995*this.dl[0];this.xl[0]=sl;this.dl[0]=yl;const yr=sr-this.xl[1]+.9995*this.dl[1];this.xl[1]=sr;this.dl[1]=yr;
@@ -2016,7 +2016,7 @@ class PolyBase extends AudioWorkletProcessor{
   this.v=[];for(let i=0;i<NV;i++)this.v.push(this.makeVoice(i));this.held=[];this.clockAge=0;this.bend=0;
   this.src=new Float32Array(nsrc);this.off=new Float32Array(this.p.length);this.lp=[0,.33,.66,.5];this.lr=[0,0,0,0];this.shp=0;this.sht=0;this.shv=0;this.sh2p=0;this.sh2t=0;this.sh2v=0;
   this.clock=0;this.step=0;this.ms=0;this.dl=[0,0];this.xl=[0,0];this.mc=0;this.pc=0;this.seqGate=false;this.lastNote=60;this.lastVel=.8;this.out2=[0,0];
-  this.port.onmessage=e=>{const m=e.data;if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);else if(m.t==='on')this.noteOn(m.n,m.v);else if(m.t==='off')this.noteOff(m.n);
+  this.port.onmessage=e=>{const m=e.data;if(m.t==='sleep'){this._sleep=!!m.on;if(!m.on&&this._xc&&this._xp!==undefined)this.clock=this._xp;return}if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);else if(m.t==='on')this.noteOn(m.n,m.v);else if(m.t==='off')this.noteOff(m.n);
    else if(m.t==='bend')this.bend=m.v;else if(m.t==='alloff'){this.held=[];for(const v of this.v)this.release(v)}}}
  rnd(){this.rs=(this.rs*1664525+1013904223)>>>0;return this.rs/4294967296}
  g(id){return this.p[this.I[id]]}
@@ -2049,7 +2049,7 @@ class PolyBase extends AudioWorkletProcessor{
   for(let m=0;m<8;m++)add(Math.round(this.g('m'+m+'src')),Math.round(this.g('m'+m+'dst')),this.g('m'+m+'amt'));
   for(let k=0;k<6;k++)add(5+k,Math.round(this.g('s'+k+'dst')),this.g('s'+k+'amt'));
   this.ectrl(dt)}
- process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,out=this.out2;
+ process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}if(this._sleep){const o_=outs[0];for(let c=0;c<o_.length;c++)o_[c].fill(0);return true}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,out=this.out2;
   for(let i=0;i<n;i++){if(this.mc%CT===0)this.ctrl();this.mc++;
    this.render(out);this.ms+=.004*(this.val('master')-this.ms);let sl=out[0]*this.ms,sr=out[1]*this.ms;
    const yl=sl-this.xl[0]+.9995*this.dl[0];this.xl[0]=sl;this.dl[0]=yl;const yr=sr-this.xl[1]+.9995*this.dl[1];this.xl[1]=sr;this.dl[1]=yr;
@@ -2233,7 +2233,7 @@ class VCS extends AudioWorkletProcessor{
   this.held=[];this.note=60;this.vel=.8;this.edge=false;
   this.src=new Float32Array(17);this.off=new Float32Array(this.p.length);this.lp=[0,.33,.66,.5];this.lr=[0,0,0,0];this.shp=0;this.sht=0;this.shv=0;this.sh2p=0;this.sh2t=0;this.sh2v=0;
   this.clock=0;this.step=0;this.ms=0;this.dl=[0,0];this.xl=[0,0];this.mc=0;this.pc=0;this.decIn=0;
-  this.port.onmessage=e=>{const m=e.data;if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);
+  this.port.onmessage=e=>{const m=e.data;if(m.t==='sleep'){this._sleep=!!m.on;if(!m.on&&this._xc&&this._xp!==undefined)this.clock=this._xp;return}if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);
    else if(m.t==='on'){this.held=this.held.filter(x=>x!==m.n);this.held.push(m.n);this.note=m.n;this.vel=m.v;this.edge=true}
    else if(m.t==='off'){this.held=this.held.filter(x=>x!==m.n);if(this.held.length)this.note=this.held[this.held.length-1]}
    else if(m.t==='alloff')this.held=[]}}
@@ -2272,7 +2272,7 @@ class VCS extends AudioWorkletProcessor{
    trap:this.val('etrap')/5,esig:this.val('esig')/10,rmix:this.val('rmix')/10,rlev:this.val('rlev')/10,out1:this.val('out1')/10,out2:this.val('out2')/10,
    pan1:this.val('pan1')/5,pan2:this.val('pan2')/5,tone:this.val('tone')/5,jx:this.val('jx')*this.val('jrx')/10,jy:this.val('jy')*this.val('jry')/10,kbd:(this.note-60)/12+(this.val('tune')+(this._bend||0))/12};
   if(!this.KS)this.KS=Object.assign({},this.K)}
- process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,fsO=this.fs*OS;
+ process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}if(this._sleep){const o_=outs[0];for(let c=0;c<o_.length;c++)o_[c].fill(0);return true}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,fsO=this.fs*OS;
   for(let i=0;i<n;i++){if(this.mc%CT===0)this.ctrl();this.mc++;
    const K=this.K,KS=this.KS,k=.003;for(const key in K)KS[key]+=k*(K[key]-KS[key]);
    this.envS+=.02*(this.env-this.envS);
@@ -2448,7 +2448,7 @@ class MS extends AudioWorkletProcessor{
   this.held=[];this.gate=false;this.edge=false;this.rel=false;this.vel=.8;this.cur=60;this.tgt=60;
   this.src=new Float32Array(20);this.off=new Float32Array(this.p.length);this.lp=[0,.33,.66,.5];this.lr=[0,0,0,0];this.mshp=0;this.msht=0;this.mshv=0;this.sh2p=0;this.sh2t=0;this.sh2v=0;
   this.clock=0;this.step=0;this.sm=null;this.ms=0;this.dl=0;this.xl=0;this.mc=0;this.pc=0;this.seqGate=false;
-  this.port.onmessage=e=>{const m=e.data;if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);
+  this.port.onmessage=e=>{const m=e.data;if(m.t==='sleep'){this._sleep=!!m.on;if(!m.on&&this._xc&&this._xp!==undefined)this.clock=this._xp;return}if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);
    else if(m.t==='on'){this.held=this.held.filter(x=>x!==m.n);this.held.push(m.n);this.vel=m.v;this.tgt=Math.max(...this.held);this.edge=true;this.gate=true}   // high-note priority
    else if(m.t==='off'){this.held=this.held.filter(x=>x!==m.n);if(!this.held.length){this.gate=false;this.rel=true}else this.tgt=Math.max(...this.held)}
    else if(m.t==='alloff'){this.held=[];this.gate=false;this.rel=true}}}
@@ -2501,7 +2501,7 @@ class MS extends AudioWorkletProcessor{
   this.w1=Math.round(this.g('v1wave'));this.w2=Math.round(this.g('v2wave'));this.sc1=[-24,-12,0,12][Math.round(this.g('v1scale'))];this.sc2=[-24,-12,0,12][Math.round(this.g('v2scale'))];
   this.amp=this.e2;this.mt=this.val('master');
   if(!this.sm)this.sm=Object.assign({},this.T)}
- process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,fsO=this.fs*OS;
+ process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}if(this._sleep){const o_=outs[0];for(let c=0;c<o_.length;c++)o_[c].fill(0);return true}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,fsO=this.fs*OS;
   for(let i=0;i<n;i++){if(this.mc%CT===0)this.ctrl();this.mc++;
    const T=this.T,S=this.sm,k=.003;for(const key in T)S[key]+=k*(T[key]-S[key]);
    this.ampS=(this.ampS||0)+.02*(this.amp-(this.ampS||0));
@@ -2635,7 +2635,7 @@ class Easel extends AudioWorkletProcessor{
   this.pph=1;this.prun=true;this.pv=0;this.stage=0;this.sv=0;this.ev=0;this.est=0;this.et=0;this.eEnd=false;
   this.src=new Float32Array(18);this.off=new Float32Array(this.p.length);this.lp=[0,.33,.66,.5];this.lr=[0,0,0,0];this.sh2p=0;this.sh2t=0;this.sh2v=0;this.shp=0;this.sht=0;this.shv=0;this.clock=0;this.step=0;
   this.sm=null;this.lv=[0,0];this.pn=[0,0];this.ms=0;this.dl=0;this.dr=0;this.xl=0;this.xr=0;this.rs=7654321;this.mc=0;this.rv=0;
-  this.port.onmessage=e=>{const m=e.data;if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);else if(m.t==='on'){this.held.push(m.n);this.note=m.n;this.tgt=440*Math.pow(2,(m.n-69)/12);this.vel=m.v;this.gate=true;this.edge=true}
+  this.port.onmessage=e=>{const m=e.data;if(m.t==='sleep'){this._sleep=!!m.on;if(!m.on&&this._xc&&this._xp!==undefined)this.clock=this._xp;return}if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);else if(m.t==='on'){this.held.push(m.n);this.note=m.n;this.tgt=440*Math.pow(2,(m.n-69)/12);this.vel=m.v;this.gate=true;this.edge=true}
    else if(m.t==='off'){this.held=this.held.filter(x=>x!==m.n);if(!this.held.length)this.gate=false;else{this.note=this.held[this.held.length-1];this.tgt=440*Math.pow(2,(this.note-69)/12)}}
    else if(m.t==='alloff'){this.held=[];this.gate=false}}}
  rnd(){this.rs=(this.rs*1664525+1013904223)>>>0;return this.rs/4294967296}
@@ -2694,7 +2694,7 @@ class Easel extends AudioWorkletProcessor{
   this.mt=this.val('master');this.rvT=this.val('rev');this.rtm=this.g('revtime');
   const gs=glideS(this.val('porta'));this.cur+=(gs<=0?1:1-Math.exp(-dt/gs))*(this.tgt-this.cur);
   if(!this.sm)this.sm=Object.assign({},this.T)}
- process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,fsO=this.fs*OS;
+ process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}if(this._sleep){const o_=outs[0];for(let c=0;c<o_.length;c++)o_[c].fill(0);return true}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length,fsO=this.fs*OS;
   for(let i=0;i<n;i++){if(this.cc===0)this.ctrl();this.cc=(this.cc+1)%CT;
    const T=this.T,S=this.sm,k=.006;for(const key in T)S[key]+=k*(T[key]-S[key]);
    const fM=Math.min(S.fm,fsO*.2);
@@ -3000,7 +3000,7 @@ class Drums extends AudioWorkletProcessor{
   this.src=new Float32Array(15);this.off=new Float32Array(this.p.length);this.lp=new Float32Array([0,.33,.66,.5]);this.lr=new Float32Array(4);
   this.shp=0;this.sht=0;this.shv=0;this.sh2p=0;this.sh2t=0;this.sh2v=0;
   this.clock=0;this.next=0;this.nextT=0;this.playing=false;this.dstep=-1;this.step=0;this.srnd=0;this.hitMask=0;this.ms=0;this.mt=.7;this.mc=0;this.pc=0;this.bpm=120;this.sw=0;this.acc=.5;
-  this.port.onmessage=e=>{const m=e.data;if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);else if(m.t==='hit')this.trigger(m.tr,.9)}}
+  this.port.onmessage=e=>{const m=e.data;if(m.t==='sleep'){this._sleep=!!m.on;if(!m.on&&this._xc&&this._xp!==undefined)this.clock=this._xp;return}if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);else if(m.t==='hit')this.trigger(m.tr,.9)}}
  rnd(){this.rs=(this.rs*1664525+1013904223)>>>0;return this.rs/4294967296}
  vi(i){const d=this.D[i];const x=this.p[i]+this.off[i];return x<d.mn?d.mn:x>d.mx?d.mx:x}
  trigger(tr,vel){const T=this.TR[tr],p=this.p;if(p[T.mute]>.5)return;const kit=Math.round(p[T.kit]),inst=Math.round(p[T.inst]);
@@ -3025,7 +3025,7 @@ class Drums extends AudioWorkletProcessor{
   this.bpm=this.vi(G.bpm);this.sw=this.vi(G.swing)*.5;this.acc=this.vi(G.accent);
   for(let tr=0;tr<8;tr++){this.lvT[tr]=this.vi(this.TR[tr].lvl);this.pnT[tr]=this.vi(this.TR[tr].pan)}
   this.mt=this.vi(G.master)}
- process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}const o=outs[0],L=o[0],R2=o[1]||o[0],n=L.length,fs=this.fs,PL=this.G.play;
+ process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}if(this._sleep){const o_=outs[0];for(let c=0;c<o_.length;c++)o_[c].fill(0);return true}const o=outs[0],L=o[0],R2=o[1]||o[0],n=L.length,fs=this.fs,PL=this.G.play;
   for(let i=0;i<n;i++){if(this.mc%CT===0)this.ctrl();this.mc++;
    const play=this.p[PL]>.5;
    if(play&&!this.playing){this.playing=true;this.clock=0;this.next=0;this.nextT=0}else if(!play&&this.playing){this.playing=false;this.dstep=-1}
@@ -3201,7 +3201,7 @@ class SP extends AudioWorkletProcessor{
   this.age=0;this.hits=[];this.vel=.8;this.note=60;
   this.src=new Float32Array(15);this.off=new Float32Array(this.p.length);this.lp=[0,.33,.66,.5];this.lr=[0,0,0,0];this.shp=0;this.sht=0;this.shv=0;this.sh2p=0;this.sh2t=0;this.sh2v=0;
   this.clock=0;this.step=0;this.ms=0;this.mc=0;this.pc=0;
-  this.port.onmessage=e=>{const m=e.data;if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);
+  this.port.onmessage=e=>{const m=e.data;if(m.t==='sleep'){this._sleep=!!m.on;if(!m.on&&this._xc&&this._xp!==undefined)this.clock=this._xp;return}if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);
    else if(m.t==='on')this.keyOn(m.n,m.v==null?.85:m.v);
    else if(m.t==='off')this.keyOff(m.n);
    else if(m.t==='pad')this.trig(m.k,m.v==null?.85:m.v,1000+m.k,0);
@@ -3249,7 +3249,7 @@ class SP extends AudioWorkletProcessor{
   for(let k=0;k<6;k++)add(5+k,Math.round(this.g('s'+k+'dst')),this.g('s'+k+'amt'));
   for(const w of this.v)if(w.on)this.coef(w);
   this.mt=this.val('master')}
- process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length;
+ process(_,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}if(this._sleep){const o_=outs[0];for(let c=0;c<o_.length;c++)o_[c].fill(0);return true}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length;
   for(let i=0;i<n;i++){if(this.mc%CT===0)this.ctrl();this.mc++;
    let sl=0,sr=0;
    for(const w of this.v){if(!w.on)continue;const sm=w.sm,ip=Math.floor(w.pos),f=w.pos-ip;
@@ -3534,7 +3534,7 @@ class Hilbert{constructor(){this.a=[.6923878,.9360654322959,.988229522686,.99874
 class FXRack extends AudioWorkletProcessor{
  constructor(o){super();const a=o.processorOptions;this.I=a.IDX;this.D=a.D;this.DSTP=a.DSTP;this.p=new Float32Array(a.P);
   this.fs=sampleRate;this.Iq=[0,1,2,3,4,5,6,7].map(q=>{const o=Object.assign({},this.I),pf='q'+q;for(const k in this.I)if(k.startsWith(pf+'f'))o[k.slice(2)]=this.I[k];return o});this.initState();
-  this.port.onmessage=e=>{const m=e.data;if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);else if(m.t==='perm'){this.p.set(m.p);const U=m.map.map(k=>this.units[k]),F=m.map.map(k=>this.slotF[k]),S=m.map.map(k=>this.mixS[k]);U.forEach((u,q)=>{if(u)u.I=this.Iq[q]});this.units=U;this.slotF=F;this.mixS=Float32Array.from(S)}else if(m.t==='on')this.noteOn(m.n,m.v||.85);else if(m.t==='off')this.noteOff(m.n);else if(m.t==='alloff')for(const v of this.voices)v.g=false}}
+  this.port.onmessage=e=>{const m=e.data;if(m.t==='sleep'){this._sleep=!!m.on;if(!m.on&&this._xc&&this._xp!==undefined)this.clock=this._xp;return}if(m.t==='tick'){this._xc=true;this._xp=(this._xp||0)+1/6;return}if(m.t==='xstart'){this._xc=true;this._xp=0;this.clock=-1e-6;this.step=15;return}if(m.t==='xoff'){this._xc=false;return}if(m.t==='bend'){this._bend=m.v;return}if(m.at!==undefined&&m.at>currentTime+128/sampleRate){(this._q||(this._q=[])).push(m);return}if(m.t==='p')this.p.set(m.p);else if(m.t==='perm'){this.p.set(m.p);const U=m.map.map(k=>this.units[k]),F=m.map.map(k=>this.slotF[k]),S=m.map.map(k=>this.mixS[k]);U.forEach((u,q)=>{if(u)u.I=this.Iq[q]});this.units=U;this.slotF=F;this.mixS=Float32Array.from(S)}else if(m.t==='on')this.noteOn(m.n,m.v||.85);else if(m.t==='off')this.noteOff(m.n);else if(m.t==='alloff')for(const v of this.voices)v.g=false}}
  // all the sound state (delay lines, filters, grains...), rebuilt from scratch if a NaN ever gets in
  initState(){const fs=this.fs;
   this.off=new Float32Array(this.p.length);this.src=new Float32Array(14);this.v=new Float32Array(this.p.length);
@@ -3937,7 +3937,7 @@ class FXRack extends AudioWorkletProcessor{
      if(Q.rt===0){ol+=(W[0]*Q.out*1.3-ol)*Q.wl;or+=(W[1]*Q.out*1.3-or)*Q.wl}else{ol+=W[0]*Q.wl*.8;or+=W[1]*Q.wl*.8}}
    o[0]=Math.tanh(ol*.7)/.7;o[1]=Math.tanh(or*.7)/.7;break}   // a soft ceiling: long tails with a lot of shimmer keep building
   }}
- process(ins,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length;const inp=ins&&ins[0]&&ins[0].length?ins[0]:null;
+ process(ins,outs){if(this._q&&this._q.length){const q=this._q;this._q=[];const e1=currentTime+128/sampleRate;for(const m of q){if(m.at<=e1)this.port.onmessage({data:Object.assign({},m,{at:undefined})});else this._q.push(m)}}if(this._sleep){const o_=outs[0];for(let c=0;c<o_.length;c++)o_[c].fill(0);return true}const o=outs[0],L=o[0],R=o[1]||o[0],n=L.length;const inp=ins&&ins[0]&&ins[0].length?ins[0]:null;
   for(let i=0;i<n;i++){if(this.cc===0)this.ctrl();this.cc=(this.cc+1)%CT;
    let l,r;if(this.src0===0){const d=this.demo(),k=this.kbd();l=d[0]+k[0];r=d[1]+k[1]}else if(this.src0===1){const d=this.kbd();l=d[0];r=d[1]}else{l=inp?inp[0][i]:0;r=inp?(inp[1]||inp[0])[i]:l}
    l*=this.gain;r*=this.gain;const a=Math.abs(l)+Math.abs(r);this.env+=(a>this.env?.01:.0004)*(a-this.env);
@@ -4588,8 +4588,8 @@ const routed={port:{postMessage(m){const tr=T[view.t];if(!tr)return;
   if(m.t==='on'||m.t==='off'||m.t==='alloff'||m.t==='hit'||m.t==='bend'||m.t==='pad'||m.t==='padoff'){
     if(m.t==='on'&&tr.eng==='dr8'){const k=DR8_GM[m.n]!=null?DR8_GM[m.n]:((m.n-36)%8+8)%8;m={t:'hit',tr:k}}
     if(m.t==='off'&&tr.eng==='dr8')return;
-    liveNote(view.t,m);if(tr.syn)tr.syn.port.postMessage(m);return}
-  const n=view.kind==='fx'?tr.fx:tr.syn;if(m.t==='p'){dirty();if(view.kind!=='fx'&&tr.eng==='dr8')drawRail()}if(n)n.port.postMessage(m)}}};
+    liveNote(view.t,m);wake(tr);if(tr.syn)tr.syn.port.postMessage(m);return}
+  const n=view.kind==='fx'?tr.fx:tr.syn;if(m.t==='p'){dirty();if(view.kind!=='fx'&&tr.eng==='dr8')drawRail()}if(n)n.port.postMessage(m);if(view.kind==='fx'&&(m.t==='p'||m.t==='perm'))routeFx(view.t)}}};
 node=routed;
 // keys pressed while a step is selected (and not recording) write that step's note(s)
 const heldKeys=new Set();
@@ -4606,13 +4606,20 @@ async function mod(id){if(loaded[id])return loaded[id];const url=URL.createObjec
   loaded[id]=ctx.audioWorklet.addModule(url);return loaded[id]}
 const opts=(m,arr,input)=>({numberOfInputs:input?1:0,numberOfOutputs:1,outputChannelCount:[2],processorOptions:{IDX:m.IDX,D:m.D,DSTP:m.DSTP,P:Array.from(arr)}});
 function setBpmIn(tr){const s=META[tr.eng],f=META.fx;if(s.IDX.bpm!=null)tr.ep[s.IDX.bpm]=song.bpm;tr.fp[f.IDX.bpm]=song.bpm}
+// Saving the iPad's one audio core: a track that has made no sound for 3 s sleeps (its engine and FX stop computing) and wakes
+// on its next note; an FX chain with no effect is bypassed (same level: an empty chain adds 1.253)
+const fxEmpty=tr=>{const I=META.fx.IDX;for(let q=0;q<8;q++)if(Math.round(tr.fp[I['slot'+q]])>0)return false;return true};
+function routeFx(t){const tr=T[t];if(!tr.syn||!tr.fx||!tr.byp)return;const e=fxEmpty(tr);if(tr.fxBy===e&&tr.routed===tr.syn)return;
+  tr.fxBy=e;tr.routed=tr.syn;try{tr.syn.disconnect()}catch(_){}tr.syn.connect(e?tr.byp:tr.fx);tr.fx.port.postMessage({t:'sleep',on:e||!!tr.asleep})}
+function wake(tr){if(!ctx)return;tr.lastAct=ctx.currentTime;if(!tr.asleep)return;tr.asleep=false;if(tr.syn)tr.syn.port.postMessage({t:'sleep',on:false});if(tr.fx&&!tr.fxBy)tr.fx.port.postMessage({t:'sleep',on:false})}
+function nap(tr){if(tr.asleep)return;tr.asleep=true;if(tr.syn)tr.syn.port.postMessage({t:'sleep',on:true});if(tr.fx)tr.fx.port.postMessage({t:'sleep',on:true})}
 async function buildSyn(t){const tr=T[t];await mod(tr.eng);if(tr.syn){try{tr.syn.port.postMessage({t:'alloff'});tr.syn.disconnect()}catch(e){}}
-  setBpmIn(tr);const m=META[tr.eng];const n=new AudioWorkletNode(ctx,'eng_'+tr.eng,opts(m,tr.ep,false));n.connect(tr.fx);tr.syn=n;
+  setBpmIn(tr);const m=META[tr.eng];const n=new AudioWorkletNode(ctx,'eng_'+tr.eng,opts(m,tr.ep,false));tr.syn=n;tr.asleep=false;tr.lastAct=ctx.currentTime;routeFx(t);
   if(tr.eng==='sp64'&&window.__SMP){const inst='g'+t;__SMP.load(inst).then(()=>__SMP.sendAll(n,inst))}
   n.port.onmessage=e=>{const d=e.data;if(tr.eng==='dr8'&&d.hits)flashRail(t);if(view.t===t&&view.kind==='syn'&&__eng&&__eng.meters&&__eng.id===tr.eng)__eng.meters(d)};
   if(playing){if(tr.eng==='dr8')drumPlay(tr,true,ctx.currentTime+.05);n.port.postMessage({t:'xstart',at:ctx.currentTime+.05})}}
 async function startAudio(){
-  ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});ctx.resume();
+  ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'balanced'});ctx.resume();
   try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}
   const b=ctx.createBuffer(1,1,22050),s=ctx.createBufferSource();s.buffer=b;s.connect(ctx.destination);s.start(0);
   master=ctx.createGain();limiter=ctx.createDynamicsCompressor();Object.assign(limiter,{});limiter.threshold.value=-4;limiter.knee.value=4;limiter.ratio.value=12;limiter.attack.value=.002;limiter.release.value=.15;
@@ -4621,11 +4628,12 @@ async function startAudio(){
   for(let t=0;t<NT;t++){const tr=T[t];tr.gain=ctx.createGain();tr.panN=ctx.createStereoPanner();tr.an=ctx.createAnalyser();tr.an.fftSize=256;
     setBpmIn(tr);tr.fx=new AudioWorkletNode(ctx,'eng_fx',opts(META.fx,tr.fp,true));
     tr.fx.port.onmessage=e=>{if(view.t===t&&view.kind==='fx'&&__eng&&__eng.meters&&__eng.id==='fx')__eng.meters(e.data)};
+    tr.byp=ctx.createGain();tr.byp.gain.value=1.253;tr.byp.connect(tr.gain);
     tr.fx.connect(tr.gain);tr.gain.connect(tr.panN);tr.panN.connect(master);tr.panN.connect(tr.an)}
   await Promise.all(T.map((_,t)=>buildSyn(t)));mixApply();requestAnimationFrame(meterLoop)}
 const lvlBuf=new Float32Array(256);
 function meterLoop(){requestAnimationFrame(meterLoop);if(!ctx)return;T.forEach((tr,t)=>{if(!tr.an)return;tr.an.getFloatTimeDomainData(lvlBuf);let s=0;for(let i=0;i<256;i++)s+=lvlBuf[i]*lvlBuf[i];
-  const v=Math.min(1,Math.sqrt(s/256)*3);tr.lvl=Math.max(v,tr.lvl*.86);const m=railEls[t]&&railEls[t].lv;if(m)m.style.width=(tr.lvl*100)+'%'})}
+  const v=Math.min(1,Math.sqrt(s/256)*3);tr.lvl=Math.max(v,tr.lvl*.86);if(!tr.asleep&&ctx.currentTime-(tr.lastAct||0)>3&&tr.lvl<3e-4)nap(tr);const m=railEls[t]&&railEls[t].lv;if(m)m.style.width=(tr.lvl*100)+'%'})}
 function mixApply(){if(!ctx)return;const solo=T.some(x=>x.solo);const now=ctx.currentTime;
   T.forEach(tr=>{if(!tr.gain)return;const on=!tr.mute&&(!solo||tr.solo);tr.gain.gain.setTargetAtTime(on?tr.vol*tr.vol/.64:0,now,.012);tr.panN.pan.setTargetAtTime(tr.pan,now,.012)});
   if(master)master.gain.setTargetAtTime(song.master*song.master/.64,now,.012)}
@@ -4655,7 +4663,8 @@ function sched(){if(!ctx)return;const ahead=ctx.currentTime+.12;
     const t0=gridT+((stepN&1)?song.swing*d*.5:0);
     const solo=T.some(x=>x.solo);
     T.forEach((tr,t)=>{if(!tr.syn)return;for(let j=0;j<6;j++)tr.syn.port.postMessage({t:'tick',at:gridT+j*d/6});
-      if(tr.eng==='dr8'||tr.mute||(solo&&!tr.solo))return;const p=tr.pats[song.pat];const s=(stepN-patStartN)%p.len;const st=p.steps[s];if(!st)return;
+      if(tr.eng==='dr8'){if(DRUMI.some(i=>tr.ep[i]>0))wake(tr);return}
+      if(tr.mute||(solo&&!tr.solo))return;const p=tr.pats[song.pat];const s=(stepN-patStartN)%p.len;const st=p.steps[s];if(!st||!st.length)return;wake(tr);
       st.forEach(x=>{tr.syn.port.postMessage({t:'on',n:x.n,v:x.v,at:t0});tr.syn.port.postMessage({t:'off',n:x.n,at:t0+Math.max(.02,x.l*d-.004)})})});
     recent.push({n:stepN,t:t0});if(recent.length>48)recent.shift();
     const n=stepN;setTimeout(()=>{if(!playing)return;curStep=n;drawPlayheads()},Math.max(0,(t0-ctx.currentTime)*1000));
