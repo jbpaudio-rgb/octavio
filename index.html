@@ -4483,7 +4483,8 @@ function midiCtx(){__ctx={};__band={};const t=s=>(s||'').replace(/\s+/g,' ').tri
 // (steps, lanes, tempo, DR8 pattern), the modulation section (LFO, S&H, matrix), the filter bank and the spectral processor.
 const NO_CC=/^(pin\d+_\d+|s\d_\d+|p\d_\d+|s\d(dst|amt)|bpm|l\d(rate|shape)|shrate|shsm|sh2rate|sh2sm|m\d(src|dst|amt)|k\d+(src|st|en|pan|att|rel|res|rev|mode|grp|vel)|k(1[6-9]|[2-6]\d)\D.*)$/;   // SP64: bank A's tune, level, cutoff and decay
 const NO_CC_BAND=/FILTER BANK|SPECTRAL PROCESSOR|PATCH MATRIX/;
-function defaultOrder(){if(typeof window.__ccOrder==='function'&&__eng&&__eng.id==='fx')return window.__ccOrder().map(i=>i!=null&&D[i]?i:null);   // the FX rack: only what is in the rack, a fixed block of CCs per slot
+function defaultOrder(){if(window.__grooveCC&&__eng&&__eng.id==='fx')return [];   // GROOVE: the synth keeps its CCs on every page; the FX take only CCs learned for them
+  if(typeof window.__ccOrder==='function'&&__eng&&__eng.id==='fx')return window.__ccOrder().map(i=>i!=null&&D[i]?i:null);   // the FX rack: only what is in the rack, a fixed block of CCs per slot
   const own=[];D.forEach((d,i)=>{if(i===IDX.master||NO_CC.test(d.id)||NO_CC_BAND.test(__band[d.id]||''))return;own.push(i)});return [...own,IDX.master]}
 const mkey=(ch,cc)=>ch*128+cc;
 function midiNames(){__names=[];const raw=D.map((d,i)=>pname0(i));const cnt={};raw.forEach(n=>cnt[n]=(cnt[n]||0)+1);const seen={};
@@ -4555,7 +4556,8 @@ function midiRender(){if(!midiOpen)return;midiSheet.classList.toggle('learning',
     sc.onchange=()=>{midiBase=+sc.value;try{localStorage.setItem('octavio.midi.ch',midiBase)}catch(e){}midiBuild();midiRender()};
     r.append(el('span',null,'INPUT'),si,el('span',null,'CC CHANNEL'),sc);pane.appendChild(r);
     pane.appendChild(el('p','shn',midiAccess.inputs.size?midiAccess.inputs.size+' input(s) connected. '+(window.__groove?'Notes on a channel play the tracks set to it (MIX or PATTERN: MIDI CH); a channel no track uses plays the selected track.':'Notes are played from any channel; the sustain pedal (CC 64) holds notes.'):'No MIDI input found. Plug in a controller; it appears here by itself.'))}
-  if(typeof window.__ccHint==='function'&&__eng&&__eng.id==='fx')pane.appendChild(el('p','shn',window.__ccHint()));
+  if(window.__grooveCC&&__eng&&__eng.id==='fx')pane.appendChild(el('p','shn','In GROOVE the track\u2019s synth keeps its CCs on every page (SYNTH, FX, PATTERN, MIX). To play an effect from your controller, press LEARN: a CC learned for an effect works on every page and takes over from the synth for that CC.'));
+  else if(typeof window.__ccHint==='function'&&__eng&&__eng.id==='fx')pane.appendChild(el('p','shn',window.__ccHint()));
   // learn
   const lr=el('div','mrow');const lb=el('button',midiLearn?'on':'',midiLearn?'CANCEL LEARN':'LEARN');
   lb.onclick=()=>{midiLearn=!midiLearn;midiTarget=-1;midiRender()};lr.appendChild(lb);
@@ -4596,11 +4598,19 @@ const DR8_GM={36:0,35:0,38:1,40:1,39:2,42:3,44:3,46:4,45:5,41:5,37:6,56:7};
 const gEl=id=>document.getElementById(id);
 
 // ---------- each engine's parameter table, read once by building its panel ----------
+window.__grooveCC=true;
 const META={};let probing=true,pendingVals=null,switching=false;
 const __bind0=__bind;__bind=function(d,idx,p,...r){if(pendingVals&&pendingVals.length===p.length)p.set(pendingVals);pendingVals=null;__bind0(d,idx,p,...r)};
 connectEngine=async()=>{if(!probing)node=routed};
 const clearSaved=()=>{for(const k in __saved)delete __saved[k]};
 clearSaved();
+// each engine's CC map (CC key -> parameter id), kept from the last time its panel was built or a CC was learned, so a track's
+// CCs reach its synth and its FX whatever page is on screen
+const ccMap={};
+function ccSnap(){if(!__eng)return;const m=new Map();midiMap.forEach((i,k)=>{if(D[i])m.set(k,D[i].id)});ccMap[__eng.id]=m}
+const __mb0=midiBuild;midiBuild=function(){__mb0();ccSnap()};
+const __ma0=midiAssign;midiAssign=function(i,k,save){__ma0(i,k,save);if(save)ccSnap()};
+midiBuild();
 for(const e of ENGINES){switchEngine(e.id);META[e.id]={id:e.id,name:e.name,def:e,D,IDX,DSTP,df:Float32Array.from(P),pads:!!e.pads};clearSaved()}
 probing=false;
 const SYN=ENGINES.filter(e=>e.id!=='fx').map(e=>e.id);
@@ -4885,17 +4895,27 @@ const chSus=Array.from({length:16},()=>({on:false,held:new Set()}));
 function midiTrack(t,m){const tr=T[t];if(!tr.syn)return;
   if(tr.eng==='dr8'){if(m.t==='off')return;if(m.t==='on')m={t:'hit',tr:DR8_GM[m.n]!=null?DR8_GM[m.n]:((m.n-36)%8+8)%8}}
   liveNote(t,m);wake(tr);tr.syn.port.postMessage(m);if(m.t==='on'||m.t==='hit')flashRail(t)}
+// a CC for track t: an effect it was learned for, otherwise the track's synth; on screen or not
+function ccTrack(t,key,b){const tr=T[t];if(!tr||(midiLearn&&midiTarget>=0)||key%128===64||key%128===120||key%128===123)return false;
+  const fx=ccMap.fx&&ccMap.fx.get(key),sy=!fx&&ccMap[tr.eng]&&ccMap[tr.eng].get(key);if(!fx&&!sy)return false;
+  const isFx=!!fx,m=isFx?META.fx:META[tr.eng],i=m.IDX[isFx?fx:sy];if(i==null)return true;const d=m.D[i];
+  const v=Math.min(d.mx,Math.max(d.mn,d.t==='f'?d.mn+b/127*(d.mx-d.mn):Math.round(b/127*(d.mx-d.mn))+d.mn));
+  const arr=isFx?tr.fp:tr.ep;const shown=view.t===t&&__eng&&P===arr;
+  if(shown){setP(i,v);return true}                       // on screen: the knob moves too
+  arr[i]=v;dirty();const n=isFx?tr.fx:tr.syn;if(n){if(!isFx)wake(tr);n.port.postMessage({t:'p',p:arr})}if(isFx)routeFx(t);return true}
 const onMidi0=onMidi;
 onMidi=function(e){const st=e.data[0],a=e.data[1],b=e.data[2];if(st>=0xf8||!ctx)return onMidi0(e);
   const type=st&0xf0,ch=st&15;const tg=[];T.forEach((tr,t)=>{if(tr.ch===ch+1||tr.ch===17)tg.push(t)});
-  if(!tg.length)return onMidi0(e);                       // nobody on this channel: the selected track plays it
+  if(!tg.length){if(type===0xb0&&ccTrack(view.t,mkey(ch,a),b))return;return onMidi0(e)}   // nobody on this channel: the selected track plays it
   try{midiLed()}catch(_){}const S=chSus[ch];
   if(type===0x90&&b>0){S.held.delete(a);tg.forEach(t=>midiTrack(t,{t:'on',n:a,v:.15+.85*b/127}));return}
   if(type===0x80||type===0x90){if(S.on){S.held.add(a);return}tg.forEach(t=>midiTrack(t,{t:'off',n:a}));return}
   if(type===0xe0){const v=(((b<<7)|a)-8192)/8192*(typeof bendRange==='number'?bendRange:2);tg.forEach(t=>T[t].syn&&T[t].syn.port.postMessage({t:'bend',v}));return}
   if(type===0xb0){if(a===64){S.on=b>=64;if(!S.on){S.held.forEach(n=>tg.forEach(t=>midiTrack(t,{t:'off',n})));S.held.clear()}return}
     if(a===120||a===123){tg.forEach(t=>T[t].syn&&T[t].syn.port.postMessage({t:'alloff'}));return}
-    if(tg.includes(view.t))onMidi0({data:[0xb0|midiBase,a,b],timeStamp:e.timeStamp})}};
+    // every track on this channel gets the CC, whichever track is on screen (learning goes to the panel on screen)
+    let used=false;tg.forEach(t=>{if(ccTrack(t,mkey(midiBase,a),b))used=true});
+    if(!used&&(tg.includes(view.t)||(midiLearn&&midiTarget>=0)))onMidi0({data:[0xb0|midiBase,a,b],timeStamp:e.timeStamp})}};
 try{if(midiAccess)midiBind()}catch(_){}
 
 // ---------- MIX view ----------

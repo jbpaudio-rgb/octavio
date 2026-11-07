@@ -3469,7 +3469,8 @@ function midiCtx(){__ctx={};__band={};const t=s=>(s||'').replace(/\s+/g,' ').tri
 // (steps, lanes, tempo, DR8 pattern), the modulation section (LFO, S&H, matrix), the filter bank and the spectral processor.
 const NO_CC=/^(pin\d+_\d+|s\d_\d+|p\d_\d+|s\d(dst|amt)|bpm|l\d(rate|shape)|shrate|shsm|sh2rate|sh2sm|m\d(src|dst|amt)|k\d+(src|st|en|pan|att|rel|res|rev|mode|grp|vel)|k(1[6-9]|[2-6]\d)\D.*)$/;   // SP64: bank A's tune, level, cutoff and decay
 const NO_CC_BAND=/FILTER BANK|SPECTRAL PROCESSOR|PATCH MATRIX/;
-function defaultOrder(){if(typeof window.__ccOrder==='function'&&__eng&&__eng.id==='fx')return window.__ccOrder().map(i=>i!=null&&D[i]?i:null);   // the FX rack: only what is in the rack, a fixed block of CCs per slot
+function defaultOrder(){if(window.__grooveCC&&__eng&&__eng.id==='fx')return [];   // GROOVE: the synth keeps its CCs on every page; the FX take only CCs learned for them
+  if(typeof window.__ccOrder==='function'&&__eng&&__eng.id==='fx')return window.__ccOrder().map(i=>i!=null&&D[i]?i:null);   // the FX rack: only what is in the rack, a fixed block of CCs per slot
   const own=[];D.forEach((d,i)=>{if(i===IDX.master||NO_CC.test(d.id)||NO_CC_BAND.test(__band[d.id]||''))return;own.push(i)});return [...own,IDX.master]}
 const mkey=(ch,cc)=>ch*128+cc;
 function midiNames(){__names=[];const raw=D.map((d,i)=>pname0(i));const cnt={};raw.forEach(n=>cnt[n]=(cnt[n]||0)+1);const seen={};
@@ -3541,7 +3542,8 @@ function midiRender(){if(!midiOpen)return;midiSheet.classList.toggle('learning',
     sc.onchange=()=>{midiBase=+sc.value;try{localStorage.setItem('octavio.midi.ch',midiBase)}catch(e){}midiBuild();midiRender()};
     r.append(el('span',null,'INPUT'),si,el('span',null,'CC CHANNEL'),sc);pane.appendChild(r);
     pane.appendChild(el('p','shn',midiAccess.inputs.size?midiAccess.inputs.size+' input(s) connected. '+(window.__groove?'Notes on a channel play the tracks set to it (MIX or PATTERN: MIDI CH); a channel no track uses plays the selected track.':'Notes are played from any channel; the sustain pedal (CC 64) holds notes.'):'No MIDI input found. Plug in a controller; it appears here by itself.'))}
-  if(typeof window.__ccHint==='function'&&__eng&&__eng.id==='fx')pane.appendChild(el('p','shn',window.__ccHint()));
+  if(window.__grooveCC&&__eng&&__eng.id==='fx')pane.appendChild(el('p','shn','In GROOVE the track\u2019s synth keeps its CCs on every page (SYNTH, FX, PATTERN, MIX). To play an effect from your controller, press LEARN: a CC learned for an effect works on every page and takes over from the synth for that CC.'));
+  else if(typeof window.__ccHint==='function'&&__eng&&__eng.id==='fx')pane.appendChild(el('p','shn',window.__ccHint()));
   // learn
   const lr=el('div','mrow');const lb=el('button',midiLearn?'on':'',midiLearn?'CANCEL LEARN':'LEARN');
   lb.onclick=()=>{midiLearn=!midiLearn;midiTarget=-1;midiRender()};lr.appendChild(lb);
