@@ -4631,11 +4631,14 @@ function demo(){T=Array.from({length:NT},(_,t)=>newTrack(t));
 const enc=(arr,m)=>{const o={};for(let i=0;i<arr.length;i++)if(arr[i]!==m.df[i])o[m.D[i].id]=+arr[i].toFixed(5);return o};
 const dec=(o,m)=>{const a=Float32Array.from(m.df);for(const k in o||{}){const i=m.IDX[k];if(i!==undefined)a[i]=o[k]}return a};
 let saveT=0;function dirty(){clearTimeout(saveT);saveT=setTimeout(saveNow,800)}
-function saveNow(){try{localStorage.setItem('octavio.groove',JSON.stringify({v:1,song,tracks:T.map(tr=>({eng:tr.eng,ep:enc(tr.ep,META[tr.eng]),
-  cache:Object.fromEntries(Object.entries(tr.cache).map(([k,a])=>[k,enc(a,META[k])])),fp:enc(tr.fp,META.fx),pats:tr.pats,drum:tr.drum,mute:tr.mute,solo:tr.solo,vol:tr.vol,pan:tr.pan,ch:tr.ch,lastNote:tr.lastNote}))}))}catch(e){}}
-function load(){let o=null;try{o=JSON.parse(localStorage.getItem('octavio.groove')||'null')}catch(e){}
-  if(!o||!o.tracks){demo();return}
-  song=Object.assign(song,o.song||{});
+// the whole project as plain data (also what a project preset keeps)
+function snap(){return {v:1,song:Object.assign({},song),tracks:T.map(tr=>({eng:tr.eng,ep:enc(tr.ep,META[tr.eng]),
+  cache:Object.fromEntries(Object.entries(tr.cache).map(([k,a])=>[k,enc(a,META[k])])),fp:enc(tr.fp,META.fx),pats:tr.pats,drum:tr.drum,mute:tr.mute,solo:tr.solo,vol:tr.vol,pan:tr.pan,ch:tr.ch,lastNote:tr.lastNote}))}}
+function saveNow(){try{localStorage.setItem('octavio.groove',JSON.stringify(snap()))}catch(e){}}
+function load(){let o=null;try{o=JSON.parse(localStorage.getItem('octavio.groove')||'null')}catch(e){}restore(o)}
+function restore(o){
+  if(!o||!o.tracks){song={bpm:112,swing:0,master:.8,pat:0};demo();return}
+  song=Object.assign({bpm:112,swing:0,master:.8,pat:0},o.song||{});
   T=o.tracks.slice(0,NT).map((s,t)=>{const eng=META[s.eng]?s.eng:DEF_ENG[t];const tr=newTrack(t);tr.eng=eng;tr.ep=dec(s.ep,META[eng]);
     for(const k in s.cache||{})if(META[k])tr.cache[k]=dec(s.cache[k],META[k]);tr.fp=dec(s.fp,META.fx);
     if(Array.isArray(s.pats))tr.pats=Array.from({length:NPAT},(_,p)=>s.pats[p]&&Array.isArray(s.pats[p].steps)?{len:s.pats[p].len||NST,steps:Array.from({length:NST},(_,k)=>s.pats[p].steps[k]||null)}:emptyPat());
@@ -4762,7 +4765,7 @@ const playB=el('button','gplay','▶ PLAY'),recB=el('button','grec','● REC');p
 function gdrag(label,get,set,fmtv,step){const b=el('div','dbox');b.tabIndex=0;b.setAttribute('role','slider');b.setAttribute('aria-label',label);let y0=0,v0=0;
   const up=()=>b.textContent=label+' '+fmtv(get());b.addEventListener('pointerdown',e=>{y0=e.clientY;v0=get();b.setPointerCapture(e.pointerId)});
   b.addEventListener('pointermove',e=>{if(b.hasPointerCapture(e.pointerId)){set(v0+(y0-e.clientY)*step);up()}});
-  b.addEventListener('keydown',e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){set(get()+(e.key==='ArrowUp'?1:-1)*step*4);up();e.preventDefault()}});up();return b}
+  b.addEventListener('keydown',e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){set(get()+(e.key==='ArrowUp'?1:-1)*step*4);up();e.preventDefault()}});up();b.up=up;return b}
 let bpmT=0;const tempoB=gdrag('TEMPO',()=>song.bpm,v=>{song.bpm=Math.round(Math.min(200,Math.max(40,v))*2)/2;clearTimeout(bpmT);bpmT=setTimeout(()=>{T.forEach(tr=>{setBpmIn(tr);if(tr.syn)tr.syn.port.postMessage({t:'p',p:tr.ep});if(tr.fx)tr.fx.port.postMessage({t:'p',p:tr.fp})});views.forEach(w=>w.update());dirty()},60)},v=>v.toFixed(v%1?1:0),.25);
 let swT=0;const swingB=gdrag('SWING',()=>song.swing,v=>{song.swing=Math.min(.75,Math.max(0,v));dirty();clearTimeout(swT);swT=setTimeout(()=>T.forEach(tr=>{if(tr.eng==='dr8'){setBpmIn(tr);if(tr.syn)tr.syn.port.postMessage({t:'p',p:tr.ep})}}),60)},v=>Math.round(v*100)+'%',.004);
 tp.append(playB,recB,tempoB,swingB);startBtn.after(tp);
@@ -4936,10 +4939,27 @@ function drawMix(){gpanel.innerHTML='';const wt=el('div','wt');wt.innerHTML='<i>
 // ---------- start ----------
 document.querySelector('#plug header .ekeys').hidden=true;
 const nb=el('button','gnew','NEW');nb.title='Start a new song (clears every track)';let nbT=0;nb.onclick=()=>{if(!nb.classList.contains('arm')){nb.classList.add('arm');nb.textContent='TAP AGAIN TO CLEAR';clearTimeout(nbT);nbT=setTimeout(()=>{nb.classList.remove('arm');nb.textContent='NEW'},3000);return}
-  clearTimeout(nbT);nb.classList.remove('arm');nb.textContent='NEW';stop();
-  T.forEach(tr=>{try{tr.syn&&tr.syn.disconnect()}catch(e){}});const old=T;demo();T.forEach((tr,t)=>{Object.assign(tr,{fx:old[t].fx,gain:old[t].gain,panN:old[t].panN,an:old[t].an,syn:null});if(tr.fx)tr.fx.port.postMessage({t:'p',p:tr.fp})});
-  if(window.__SMP)for(let t=0;t<NT;t++)__SMP.drop('g'+t);
-  song={bpm:112,swing:0,master:.8,pat:0};if(ctx)T.forEach((_,t)=>buildSyn(t));mixApply();dirty();buildRail();show(0,'pat')};
+  clearTimeout(nbT);nb.classList.remove('arm');nb.textContent='NEW';
+  if(window.__SMP)for(let t=0;t<NT;t++)__SMP.drop('g'+t);setProject(null)};
+// puts a whole project in place (null: the new-song demo); the tracks keep their audio nodes, each synth is rebuilt
+function setProject(o){stop();queued=-1;
+  T.forEach(tr=>{try{tr.syn&&(tr.syn.port.postMessage({t:'alloff'}),tr.syn.disconnect())}catch(e){}});const old=T;restore(o);
+  T.forEach((tr,t)=>{Object.assign(tr,{fx:old[t].fx,gain:old[t].gain,panN:old[t].panN,an:old[t].an,byp:old[t].byp,syn:null,fxBy:undefined,routed:null});setBpmIn(tr);if(tr.fx)tr.fx.port.postMessage({t:'p',p:tr.fp})});
+  if(ctx)T.forEach((_,t)=>buildSyn(t));mixApply();dirty();buildRail();tempoB.up();swingB.up();show(0,'pat')}
+// PRESET: whole projects (8 tracks: engines, sounds, FX, mix, patterns, tempo, swing), 8 slots in this browser
+const PKEY='octavio.groove.presets';
+function gpStore(){try{return JSON.parse(localStorage.getItem(PKEY)||'[]')}catch(e){return []}}
+renderPresets=function(){const all=gpStore();presetMenu.innerHTML='';
+  const head=el('div','ph');head.append(el('span',null,'PROJECTS'),el('span',null,presetSave?'TAP A SLOT TO SAVE':'TAP A SLOT TO LOAD'));presetMenu.appendChild(head);
+  const sl=el('div','slots');for(let k=0;k<8;k++){const p=all[k];const b=el('button','slot'+(p?'':' empty'),(k+1)+'  '+(p?p.name:'EMPTY'));if(p&&p.o&&p.o.song)b.title=Math.round(p.o.song.bpm)+' BPM \u00B7 '+p.o.tracks.map(s=>META[s.eng]?META[s.eng].name:'?').join(' ');
+    b.onclick=()=>{if(presetSave){const o=gpStore();const d=new Date();o[k]={name:'SONG '+(k+1)+' \u00B7 '+Math.round(song.bpm),date:d.toISOString(),o:snap()};
+        try{localStorage.setItem(PKEY,JSON.stringify(o))}catch(e){head.lastChild.textContent='NOT ENOUGH ROOM IN THIS BROWSER';return}presetSave=false;renderPresets()}
+      else if(p){closePresets();setProject(JSON.parse(JSON.stringify(p.o)))}};
+    sl.appendChild(b)}presetMenu.appendChild(sl);
+  const acts=el('div','acts');const sv=el('button',presetSave?'on':'','SAVE');sv.onclick=()=>{presetSave=!presetSave;renderPresets()};acts.append(sv);
+  if(presetSave&&all.some(Boolean)){const cl=el('button',null,'CLEAR A SLOT');cl.onclick=()=>{presetSave=false;presetMenu.querySelectorAll('.slot').forEach((b,k)=>{if(!all[k])return;b.textContent=(k+1)+'  DELETE?';b.onclick=()=>{const o=gpStore();o[k]=null;try{localStorage.setItem(PKEY,JSON.stringify(o))}catch(e){}renderPresets()}})};acts.append(cl)}
+  presetMenu.appendChild(acts);presetMenu.appendChild(el('div','hint','A project keeps all 8 tracks: engines, sounds, FX, mix, patterns, tempo and swing. SAMPLER sounds stay with their track and are not part of a project. Kept in this browser only. MIDI program change 1\u20138 loads slot 1\u20138.'))};
+loadPreset=function(k){const p=gpStore()[k];if(!p)return false;setProject(JSON.parse(JSON.stringify(p.o)));return true};
 playB.parentNode.appendChild(nb);
 try{clkFollow=false}catch(e){}
 window.__resampleSources=()=>ctx&&limiter?[{label:'MIX',node:limiter},...T.map((tr,t)=>({label:'TRACK '+(t+1)+' '+META[tr.eng].name,node:tr.panN}))]:[];
@@ -4947,7 +4967,7 @@ __viewPref='touch';viewBtn.hidden=true;
 addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat&&!/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)&&!(__eng&&__eng.pads&&view.kind==='syn')){e.preventDefault();playing?stop():play()}});
 addEventListener('pagehide',saveNow);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveNow()});
 buildRail();show(0,'pat');__applyMode(true);
-window.__groove={get wasm(){return WASM},T,META,show,play,stop,get playing(){return playing},song:()=>song};
+window.__groove={get wasm(){return WASM},get T(){return T},META,show,play,stop,get playing(){return playing},song:()=>song};
 })();
 
 </script>
