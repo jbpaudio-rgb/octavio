@@ -100,6 +100,8 @@ body{padding:0!important}
 .presetmenu .slots{display:grid;grid-template-columns:1fr 1fr;gap:5px}
 .presetmenu .slot{text-align:left;font-size:12px;padding:6px 8px;overflow:hidden;text-overflow:ellipsis}
 .presetmenu .slot.empty{color:var(--soft)}
+.pbanks{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}.pbanks button{padding:5px 0;font-size:12px;box-shadow:none}.pbanks button.used:not(.on){box-shadow:inset 0 -2px 0 var(--led)}
+.ptabs{display:grid;grid-template-columns:1fr 1fr;gap:4px}.ptabs button{padding:7px 0;font-size:12px}
 .presetmenu .acts{display:flex;gap:5px;flex-wrap:wrap}
 /* ---------- panels and controls (shared by every engine) ---------- */
 .sec{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;overflow:hidden;min-width:0}
@@ -707,16 +709,20 @@ function switchEngine(id){
 const presetBtn=document.getElementById('presetBtn'),presetMenu=document.getElementById('presetMenu');let presetSave=false;
 function pstore(){try{return JSON.parse(localStorage.getItem('octavio.presets')||'{}')}catch(e){return {}}}
 function pwrite(o){try{localStorage.setItem('octavio.presets',JSON.stringify(o));return true}catch(e){return false}}
-function renderPresets(){const all=pstore(),mine=all[__eng.id]||[];presetMenu.innerHTML='';
+// 8 banks (A-H) of 8 presets per engine; slot k of bank b is preset b*8+k (the first bank is where presets were before banks)
+let presetBank=0;const BANKS='ABCDEFGH';
+function bankRow(n,cur,pick,used){const r=el('div','pbanks');for(let b=0;b<n;b++){const x=el('button',(b===cur?'on':'')+(used&&used(b)?' used':''),BANKS[b]);x.title='Bank '+BANKS[b];x.onclick=()=>pick(b);r.appendChild(x)}return r}
+function renderPresets(){const all=pstore(),mine=all[__eng.id]||[];presetMenu.innerHTML='';const B=presetBank;
   const head=el('div','ph');head.append(el('span',null,__eng.name+' PRESETS'),el('span',null,presetSave?'TAP A SLOT TO SAVE':'TAP A SLOT TO LOAD'));presetMenu.appendChild(head);
-  const sl=el('div','slots');for(let k=0;k<8;k++){const p=mine[k];const b=el('button','slot'+(p?'':' empty'),(k+1)+'  '+(p?p.name:'EMPTY'));
-    b.onclick=()=>{if(presetSave){const o=pstore();o[__eng.id]=o[__eng.id]||[];o[__eng.id][k]={name:__eng.name+' '+(k+1),ids:D.map(d=>d.id),v:Array.from(P)};
+  presetMenu.appendChild(bankRow(8,B,b=>{presetBank=b;renderPresets()},b=>mine.slice(b*8,b*8+8).some(Boolean)));
+  const sl=el('div','slots');for(let k0=0;k0<8;k0++){const k=B*8+k0;const p=mine[k];const b=el('button','slot'+(p?'':' empty'),BANKS[B]+(k0+1)+'  '+(p?p.name:'EMPTY'));
+    b.onclick=()=>{if(presetSave){const o=pstore();o[__eng.id]=o[__eng.id]||[];o[__eng.id][k]={name:__eng.name+' '+BANKS[B]+(k0+1),ids:D.map(d=>d.id),v:Array.from(P)};
         if(!pwrite(o)){head.lastChild.textContent='THIS BROWSER BLOCKS SAVING';return}presetSave=false;renderPresets()}
       else if(p){p.ids.forEach((id,j)=>{const i=IDX[id];if(i!==undefined)P[i]=p.v[j]});views.forEach(w=>w.update());send();closePresets()}};
     sl.appendChild(b)}presetMenu.appendChild(sl);
   const acts=el('div','acts');const sv=el('button',presetSave?'on':'','SAVE');sv.onclick=()=>{presetSave=!presetSave;renderPresets()};
   const init=el('button',null,'INIT ENGINE');init.onclick=()=>{D.forEach((d,i)=>P[i]=d.df);views.forEach(w=>w.update());send();closePresets()};
-  acts.append(sv,init);presetMenu.appendChild(acts);presetMenu.appendChild(el('div','hint','Presets are kept in this browser only.'))}
+  acts.append(sv,init);presetMenu.appendChild(acts);presetMenu.appendChild(el('div','hint','8 banks of 8. Presets are kept in this browser only. MIDI program change 1\u201364 loads A1\u2013H8.'))}
 function closePresets(){presetMenu.hidden=true;presetSave=false;presetBtn.setAttribute('aria-expanded','false')}
 presetBtn.onclick=()=>{if(presetMenu.hidden){renderPresets();presetMenu.hidden=false;presetBtn.setAttribute('aria-expanded','true')}else closePresets()};
 document.addEventListener('pointerdown',e=>{if(!presetMenu.hidden&&!e.target.closest('.presetbox'))closePresets()});
@@ -3505,7 +3511,7 @@ function onMidi(e){const [st,a,b]=e.data;
   if(st>=0xf8){if(!clkFollow)return;if(st===0xf8)clkTick(e.timeStamp||performance.now());else if(st===0xfa)transport('start');else if(st===0xfb)transport('cont');else if(st===0xfc)transport('stop');return}
   const type=st&0xf0,ch=st&15;if(type<0x80||type>0xe0)return;midiLed();
   if(type===0xe0){if(!__eng.pads)wpost({t:'bend',v:(((b<<7)|a)-8192)/8192*bendRange});return}
-  if(type===0xc0){if(ch===midiBase)loadPreset(a&7);return}
+  if(type===0xc0){if(ch===midiBase&&a<64)loadPreset(a);return}
   if(type===0x90&&b>0){if(__eng.pads){drumHit(a);return}sustained.delete(a);noteOn(a,.15+.85*b/127);return}
   if(type===0x80||(type===0x90&&b===0)){if(__eng.pads)return;if(sustain)sustained.add(a);else noteOff(a);return}
   if(type===0xb0){

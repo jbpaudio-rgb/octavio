@@ -100,6 +100,8 @@ body{padding:0!important}
 .presetmenu .slots{display:grid;grid-template-columns:1fr 1fr;gap:5px}
 .presetmenu .slot{text-align:left;font-size:12px;padding:6px 8px;overflow:hidden;text-overflow:ellipsis}
 .presetmenu .slot.empty{color:var(--soft)}
+.pbanks{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}.pbanks button{padding:5px 0;font-size:12px;box-shadow:none}.pbanks button.used:not(.on){box-shadow:inset 0 -2px 0 var(--led)}
+.ptabs{display:grid;grid-template-columns:1fr 1fr;gap:4px}.ptabs button{padding:7px 0;font-size:12px}
 .presetmenu .acts{display:flex;gap:5px;flex-wrap:wrap}
 /* ---------- panels and controls (shared by every engine) ---------- */
 .sec{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;overflow:hidden;min-width:0}
@@ -617,6 +619,7 @@ body.touch #plug.gsmp{grid-template-rows:auto minmax(0,1fr) auto}
 .gtop .genb{font-size:13.5px;letter-spacing:.02em}
 .gtop .genb.long{font-size:12px;letter-spacing:0}
 .gtop .genb.long{font-size:11.5px}.gtrk{padding-right:6px}
+.presetmenu.gpm{width:330px}
 </style>
 
 <div id="plug" data-gv="pat">
@@ -881,16 +884,20 @@ function switchEngine(id){
 const presetBtn=document.getElementById('presetBtn'),presetMenu=document.getElementById('presetMenu');let presetSave=false;
 function pstore(){try{return JSON.parse(localStorage.getItem('octavio.presets')||'{}')}catch(e){return {}}}
 function pwrite(o){try{localStorage.setItem('octavio.presets',JSON.stringify(o));return true}catch(e){return false}}
-function renderPresets(){const all=pstore(),mine=all[__eng.id]||[];presetMenu.innerHTML='';
+// 8 banks (A-H) of 8 presets per engine; slot k of bank b is preset b*8+k (the first bank is where presets were before banks)
+let presetBank=0;const BANKS='ABCDEFGH';
+function bankRow(n,cur,pick,used){const r=el('div','pbanks');for(let b=0;b<n;b++){const x=el('button',(b===cur?'on':'')+(used&&used(b)?' used':''),BANKS[b]);x.title='Bank '+BANKS[b];x.onclick=()=>pick(b);r.appendChild(x)}return r}
+function renderPresets(){const all=pstore(),mine=all[__eng.id]||[];presetMenu.innerHTML='';const B=presetBank;
   const head=el('div','ph');head.append(el('span',null,__eng.name+' PRESETS'),el('span',null,presetSave?'TAP A SLOT TO SAVE':'TAP A SLOT TO LOAD'));presetMenu.appendChild(head);
-  const sl=el('div','slots');for(let k=0;k<8;k++){const p=mine[k];const b=el('button','slot'+(p?'':' empty'),(k+1)+'  '+(p?p.name:'EMPTY'));
-    b.onclick=()=>{if(presetSave){const o=pstore();o[__eng.id]=o[__eng.id]||[];o[__eng.id][k]={name:__eng.name+' '+(k+1),ids:D.map(d=>d.id),v:Array.from(P)};
+  presetMenu.appendChild(bankRow(8,B,b=>{presetBank=b;renderPresets()},b=>mine.slice(b*8,b*8+8).some(Boolean)));
+  const sl=el('div','slots');for(let k0=0;k0<8;k0++){const k=B*8+k0;const p=mine[k];const b=el('button','slot'+(p?'':' empty'),BANKS[B]+(k0+1)+'  '+(p?p.name:'EMPTY'));
+    b.onclick=()=>{if(presetSave){const o=pstore();o[__eng.id]=o[__eng.id]||[];o[__eng.id][k]={name:__eng.name+' '+BANKS[B]+(k0+1),ids:D.map(d=>d.id),v:Array.from(P)};
         if(!pwrite(o)){head.lastChild.textContent='THIS BROWSER BLOCKS SAVING';return}presetSave=false;renderPresets()}
       else if(p){p.ids.forEach((id,j)=>{const i=IDX[id];if(i!==undefined)P[i]=p.v[j]});views.forEach(w=>w.update());send();closePresets()}};
     sl.appendChild(b)}presetMenu.appendChild(sl);
   const acts=el('div','acts');const sv=el('button',presetSave?'on':'','SAVE');sv.onclick=()=>{presetSave=!presetSave;renderPresets()};
   const init=el('button',null,'INIT ENGINE');init.onclick=()=>{D.forEach((d,i)=>P[i]=d.df);views.forEach(w=>w.update());send();closePresets()};
-  acts.append(sv,init);presetMenu.appendChild(acts);presetMenu.appendChild(el('div','hint','Presets are kept in this browser only.'))}
+  acts.append(sv,init);presetMenu.appendChild(acts);presetMenu.appendChild(el('div','hint','8 banks of 8. Presets are kept in this browser only. MIDI program change 1\u201364 loads A1\u2013H8.'))}
 function closePresets(){presetMenu.hidden=true;presetSave=false;presetBtn.setAttribute('aria-expanded','false')}
 presetBtn.onclick=()=>{if(presetMenu.hidden){renderPresets();presetMenu.hidden=false;presetBtn.setAttribute('aria-expanded','true')}else closePresets()};
 document.addEventListener('pointerdown',e=>{if(!presetMenu.hidden&&!e.target.closest('.presetbox'))closePresets()});
@@ -4519,7 +4526,7 @@ function onMidi(e){const [st,a,b]=e.data;
   if(st>=0xf8){if(!clkFollow)return;if(st===0xf8)clkTick(e.timeStamp||performance.now());else if(st===0xfa)transport('start');else if(st===0xfb)transport('cont');else if(st===0xfc)transport('stop');return}
   const type=st&0xf0,ch=st&15;if(type<0x80||type>0xe0)return;midiLed();
   if(type===0xe0){if(!__eng.pads)wpost({t:'bend',v:(((b<<7)|a)-8192)/8192*bendRange});return}
-  if(type===0xc0){if(ch===midiBase)loadPreset(a&7);return}
+  if(type===0xc0){if(ch===midiBase&&a<64)loadPreset(a);return}
   if(type===0x90&&b>0){if(__eng.pads){drumHit(a);return}sustained.delete(a);noteOn(a,.15+.85*b/127);return}
   if(type===0x80||(type===0x90&&b===0)){if(__eng.pads)return;if(sustain)sustained.add(a);else noteOff(a);return}
   if(type===0xb0){
@@ -4946,19 +4953,36 @@ function setProject(o){stop();queued=-1;
   T.forEach(tr=>{try{tr.syn&&(tr.syn.port.postMessage({t:'alloff'}),tr.syn.disconnect())}catch(e){}});const old=T;restore(o);
   T.forEach((tr,t)=>{Object.assign(tr,{fx:old[t].fx,gain:old[t].gain,panN:old[t].panN,an:old[t].an,byp:old[t].byp,syn:null,fxBy:undefined,routed:null});setBpmIn(tr);if(tr.fx)tr.fx.port.postMessage({t:'p',p:tr.fp})});
   if(ctx)T.forEach((_,t)=>buildSyn(t));mixApply();dirty();buildRail();tempoB.up();swingB.up();show(0,'pat')}
-// PRESET: whole projects (8 tracks: engines, sounds, FX, mix, patterns, tempo, swing), 8 slots in this browser
-const PKEY='octavio.groove.presets';
+// PRESET: two kinds, 8 banks of 8 each. PROJECTS: the whole song (8 tracks: engines, sounds, FX, mix, patterns, tempo, swing).
+// SOUNDS: the selected track's synth, shared with the synth app (same presets per engine); the DR8 keeps its pattern when one loads.
+const PKEY='octavio.groove.presets';let gpMode='proj',gpBank={proj:0,snd:0};
 function gpStore(){try{return JSON.parse(localStorage.getItem(PKEY)||'[]')}catch(e){return []}}
-renderPresets=function(){const all=gpStore();presetMenu.innerHTML='';
-  const head=el('div','ph');head.append(el('span',null,'PROJECTS'),el('span',null,presetSave?'TAP A SLOT TO SAVE':'TAP A SLOT TO LOAD'));presetMenu.appendChild(head);
-  const sl=el('div','slots');for(let k=0;k<8;k++){const p=all[k];const b=el('button','slot'+(p?'':' empty'),(k+1)+'  '+(p?p.name:'EMPTY'));if(p&&p.o&&p.o.song)b.title=Math.round(p.o.song.bpm)+' BPM \u00B7 '+p.o.tracks.map(s=>META[s.eng]?META[s.eng].name:'?').join(' ');
-    b.onclick=()=>{if(presetSave){const o=gpStore();const d=new Date();o[k]={name:'SONG '+(k+1)+' \u00B7 '+Math.round(song.bpm),date:d.toISOString(),o:snap()};
-        try{localStorage.setItem(PKEY,JSON.stringify(o))}catch(e){head.lastChild.textContent='NOT ENOUGH ROOM IN THIS BROWSER';return}presetSave=false;renderPresets()}
-      else if(p){closePresets();setProject(JSON.parse(JSON.stringify(p.o)))}};
+const KEEP=/^(p\d_\d+|bpm|swing|play)$/;   // not part of a sound: the drum pattern and the clock
+function sndLoad(t,p){const tr=T[t],m=META[tr.eng];p.ids.forEach((id,j)=>{const i=m.IDX[id];if(i!==undefined&&!KEEP.test(id))tr.ep[i]=p.v[j]});sndSent(t)}
+function sndInit(t){const tr=T[t],m=META[tr.eng];m.D.forEach((d,i)=>{if(!KEEP.test(d.id))tr.ep[i]=m.df[i]});sndSent(t)}
+function sndSent(t){const tr=T[t];setBpmIn(tr);if(P===tr.ep){views.forEach(w=>w.update());send()}else if(tr.syn){wake(tr);tr.syn.port.postMessage({t:'p',p:tr.ep})}
+  dirty();if(tr.eng==='sp64')smpView()}
+renderPresets=function(){presetMenu.innerHTML='';presetMenu.classList.add('gpm');const proj=gpMode==='proj',B=gpBank[gpMode],tr=T[view.t],m=META[tr.eng];
+  const tabs=el('div','ptabs');[['proj','PROJECTS'],['snd','SOUNDS · '+m.name]].forEach(([k,n])=>{const x=el('button',k===gpMode?'on':'',n);x.onclick=()=>{gpMode=k;presetSave=false;renderPresets()};tabs.appendChild(x)});presetMenu.appendChild(tabs);
+  const list=proj?gpStore():(pstore()[tr.eng]||[]);
+  const head=el('div','ph');head.append(el('span',null,proj?'WHOLE SONG':'TRACK '+(view.t+1)+' · '+m.name),el('span',null,presetSave?'TAP A SLOT TO SAVE':'TAP A SLOT TO LOAD'));presetMenu.appendChild(head);
+  presetMenu.appendChild(bankRow(8,B,b=>{gpBank[gpMode]=b;renderPresets()},b=>list.slice(b*8,b*8+8).some(Boolean)));
+  const sl=el('div','slots');for(let k0=0;k0<8;k0++){const k=B*8+k0,p=list[k],tag=BANKS[B]+(k0+1);const b=el('button','slot'+(p?'':' empty'),tag+'  '+(p?p.name:'EMPTY'));
+    if(proj&&p&&p.o&&p.o.song)b.title=Math.round(p.o.song.bpm)+' BPM · '+p.o.tracks.map(s=>META[s.eng]?META[s.eng].name:'?').join(' ');
+    b.onclick=()=>{
+      if(presetSave){let ok=true;
+        if(proj){const o=gpStore();o[k]={name:'SONG '+tag+' · '+Math.round(song.bpm),date:new Date().toISOString(),o:snap()};try{localStorage.setItem(PKEY,JSON.stringify(o))}catch(e){ok=false}}
+        else{const o=pstore();o[tr.eng]=o[tr.eng]||[];o[tr.eng][k]={name:m.name+' '+tag,ids:m.D.map(d=>d.id),v:Array.from(tr.ep)};ok=pwrite(o)}
+        if(!ok){head.lastChild.textContent='NOT ENOUGH ROOM IN THIS BROWSER';return}presetSave=false;renderPresets()}
+      else if(p){closePresets();if(proj)setProject(JSON.parse(JSON.stringify(p.o)));else sndLoad(view.t,p)}};
     sl.appendChild(b)}presetMenu.appendChild(sl);
   const acts=el('div','acts');const sv=el('button',presetSave?'on':'','SAVE');sv.onclick=()=>{presetSave=!presetSave;renderPresets()};acts.append(sv);
-  if(presetSave&&all.some(Boolean)){const cl=el('button',null,'CLEAR A SLOT');cl.onclick=()=>{presetSave=false;presetMenu.querySelectorAll('.slot').forEach((b,k)=>{if(!all[k])return;b.textContent=(k+1)+'  DELETE?';b.onclick=()=>{const o=gpStore();o[k]=null;try{localStorage.setItem(PKEY,JSON.stringify(o))}catch(e){}renderPresets()}})};acts.append(cl)}
-  presetMenu.appendChild(acts);presetMenu.appendChild(el('div','hint','A project keeps all 8 tracks: engines, sounds, FX, mix, patterns, tempo and swing. SAMPLER sounds stay with their track and are not part of a project. Kept in this browser only. MIDI program change 1\u20138 loads slot 1\u20138.'))};
+  if(!proj){const init=el('button',null,'INIT SOUND');init.onclick=()=>{sndInit(view.t);closePresets()};acts.append(init)}
+  if(presetSave&&list.slice(B*8,B*8+8).some(Boolean)){const cl=el('button',null,'DELETE');cl.onclick=()=>{presetSave=false;presetMenu.querySelectorAll('.slot').forEach((b,k0)=>{const k=B*8+k0;if(!list[k])return;b.textContent=BANKS[B]+(k0+1)+'  DELETE?';
+      b.onclick=()=>{if(proj){const o=gpStore();o[k]=null;try{localStorage.setItem(PKEY,JSON.stringify(o))}catch(e){}}else{const o=pstore();if(o[tr.eng])o[tr.eng][k]=null;pwrite(o)}renderPresets()}})};acts.append(cl)}
+  presetMenu.appendChild(acts);
+  presetMenu.appendChild(el('div','hint',proj?'A project keeps all 8 tracks: engines, sounds, FX, mix, patterns, tempo and swing. SAMPLER sounds stay with their track. Kept in this browser only. MIDI program change 1–64 loads A1–H8.'
+    :'Sounds of the selected track’s engine, the same ones as in the synth app. Loading one keeps this track’s pattern and tempo.'))};
 loadPreset=function(k){const p=gpStore()[k];if(!p)return false;setProject(JSON.parse(JSON.stringify(p.o)));return true};
 playB.parentNode.appendChild(nb);
 try{clkFollow=false}catch(e){}
