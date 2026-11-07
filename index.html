@@ -553,7 +553,6 @@ body.touch #plug[data-gv=mix]{grid-template-rows:auto minmax(0,1fr)}
 
 /* engine picker: the engine name on each track, the ENGINE button, and the sheet listing every engine */
 .gtop .genb{background:none;border:0;box-shadow:none;padding:4px 2px;min-height:30px;text-align:left;color:var(--ink);cursor:pointer;font-family:var(--f-label);font-weight:700;font-size:15px;letter-spacing:.1em}
-.gtop .genb:hover{color:var(--c)}
 .gengb{min-height:42px;padding:0 14px;font-size:14px;letter-spacing:.12em;border-color:var(--tc,var(--line));box-shadow:inset 0 -3px 0 var(--tc,transparent),0 2px 0 #000}
 .gpick{width:min(820px,100%)}
 .gpgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
@@ -611,6 +610,13 @@ body.touch #plug.gsmp{grid-template-rows:auto minmax(0,1fr) auto}
 #plug.gsmp .spall .grp>.cap{font-size:12.5px}
 #plug.gsmp .spctl{gap:8px 16px}
 #plug.gsmp #engWin .fitwrap{overflow-y:auto!important;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+
+.gtop .genb{cursor:inherit;text-overflow:ellipsis}
+/* the track list: room for the engine names next to M and S */
+.gtop{gap:4px}.gtop button.gm,.gtop button.gs{min-width:27px;padding:0}
+.gtop .genb{font-size:13.5px;letter-spacing:.02em}
+.gtop .genb.long{font-size:12px;letter-spacing:0}
+.gtop .genb.long{font-size:11.5px}.gtrk{padding-right:6px}
 </style>
 
 <div id="plug" data-gv="pat">
@@ -4765,14 +4771,14 @@ function drawTransport(){playB.classList.toggle('on',playing);playB.textContent=
 const railEls=[];
 function buildRail(){rail.innerHTML='';railEls.length=0;
   T.forEach((tr,t)=>{const r=el('div','gtrk');r.style.setProperty('--c',COL[t]);r.tabIndex=0;r.setAttribute('role','button');
-    const top=el('div','gtop');const nm=el('b',null,String(t+1));const en=el('button','gen genb','');en.title='Change this track\'s engine';en.onclick=e=>{e.stopPropagation();enginePicker(t)};const ms=el('button','gm','M'),ss=el('button','gs','S');
+    const top=el('div','gtop');const nm=el('b',null,String(t+1));const en=el('span','gen genb','');/* the engine's name: it is changed with ENGINE at the top, or in PATTERN */const ms=el('button','gm','M'),ss=el('button','gs','S');
     ms.onclick=e=>{e.stopPropagation();tr.mute=!tr.mute;mixApply();drawRail();dirty()};ss.onclick=e=>{e.stopPropagation();tr.solo=!tr.solo;mixApply();drawRail();dirty()};
     top.append(nm,en,ms,ss);const cells=el('div','gcells');for(let k=0;k<NST;k++)cells.appendChild(el('i'));const lv=el('div','glv');lv.appendChild(el('i'));
     r.append(top,cells,lv);r.onclick=()=>show(t,view.kind);r.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();show(t,view.kind)}};
     rail.appendChild(r);railEls.push({r,en,ms,ss,cells:[...cells.children],lv:lv.firstChild})});drawRail()}
 function stepsOf(tr){if(tr.eng!=='dr8'){const p=tr.pats[song.pat];return Array.from({length:NST},(_,k)=>k>=p.len?-1:p.steps[k]&&p.steps[k].length?1:0)}
   return Array.from({length:NST},(_,k)=>{let v=0;for(let r=0;r<8;r++)v=Math.max(v,tr.ep[META.dr8.IDX['p'+r+'_'+k]]>0?1:0);return v})}
-function drawRail(){T.forEach((tr,t)=>{const e=railEls[t];if(!e)return;e.r.classList.toggle('on',t===view.t);e.en.textContent=META[tr.eng].name+(META[tr.eng].name.length<7?' \u25BE':'');e.en.setAttribute('aria-label','Track '+(t+1)+' engine: '+META[tr.eng].name+'. Change it');e.ms.classList.toggle('on',tr.mute);e.ss.classList.toggle('on',tr.solo);
+function drawRail(){T.forEach((tr,t)=>{const e=railEls[t];if(!e)return;e.r.classList.toggle('on',t===view.t);e.en.textContent=META[tr.eng].name;e.en.classList.toggle('long',META[tr.eng].name.length>6);e.ms.classList.toggle('on',tr.mute);e.ss.classList.toggle('on',tr.solo);
   e.r.classList.toggle('muted',tr.mute||(T.some(x=>x.solo)&&!tr.solo));const st=stepsOf(tr);e.cells.forEach((c,k)=>{c.className=st[k]<0?'off':st[k]?'hit':''})});drawPlayheads()}
 function drawPlayheads(){T.forEach((tr,t)=>{const e=railEls[t];if(!e)return;const len=tr.eng==='dr8'?NST:tr.pats[song.pat].len;const s=curStep<0?-1:((curStep-patStartN)%len+len)%len;e.cells.forEach((c,k)=>c.classList.toggle('now',k===s))});
   if(view.kind==='pat'&&patCells.length){const tr=T[view.t];const len=tr.eng==='dr8'?NST:tr.pats[song.pat].len;const s=curStep<0?-1:((curStep-patStartN)%len+len)%len;patCells.forEach(c=>c.el.classList.toggle('now',c.k===s))}}
