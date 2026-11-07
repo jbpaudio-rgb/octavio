@@ -568,6 +568,10 @@ body.touch #plug[data-gv=mix]{grid-template-rows:auto minmax(0,1fr)}
 .gpats{gap:4px}.gpats button{min-width:36px}
 .gbar{gap:8px}
 @media (max-width:1250px){.gpats .gcap{display:none}}
+
+/* MIDI channel of a track */
+.gsel.gmc{min-height:38px;max-width:none;width:auto;padding:4px 6px;font-size:14px}
+.gch>.gsel.gmc{width:100%}
 </style>
 
 <div id="plug" data-gv="pat">
@@ -4560,7 +4564,7 @@ const fxDefault=()=>{const m=META.fx,a=Float32Array.from(m.df);for(let q=0;q<8;q
 // ---------- the song ----------
 const emptyPat=()=>({len:NST,steps:Array.from({length:NST},()=>null)});
 const newTrack=t=>({eng:DEF_ENG[t],ep:Float32Array.from(META[DEF_ENG[t]].df),cache:{},fp:fxDefault(),pats:Array.from({length:NPAT},emptyPat),drum:Array(NPAT).fill(null),
-  mute:false,solo:false,vol:.8,pan:0,lastNote:48,syn:null,fx:null,gain:null,panN:null,an:null,lvl:0});
+  mute:false,solo:false,vol:.8,pan:0,lastNote:48,ch:t+1,syn:null,fx:null,gain:null,panN:null,an:null,lvl:0});
 let T=[],song={bpm:112,swing:0,master:.8,pat:0};
 function demo(){T=Array.from({length:NT},(_,t)=>newTrack(t));
   const st=(t,s,n,l,v)=>{const p=T[t].pats[0];(p.steps[s]=p.steps[s]||[]).push({n,v:v||.8,l:l||1})};
@@ -4573,7 +4577,7 @@ const enc=(arr,m)=>{const o={};for(let i=0;i<arr.length;i++)if(arr[i]!==m.df[i])
 const dec=(o,m)=>{const a=Float32Array.from(m.df);for(const k in o||{}){const i=m.IDX[k];if(i!==undefined)a[i]=o[k]}return a};
 let saveT=0;function dirty(){clearTimeout(saveT);saveT=setTimeout(saveNow,800)}
 function saveNow(){try{localStorage.setItem('octavio.groove',JSON.stringify({v:1,song,tracks:T.map(tr=>({eng:tr.eng,ep:enc(tr.ep,META[tr.eng]),
-  cache:Object.fromEntries(Object.entries(tr.cache).map(([k,a])=>[k,enc(a,META[k])])),fp:enc(tr.fp,META.fx),pats:tr.pats,drum:tr.drum,mute:tr.mute,solo:tr.solo,vol:tr.vol,pan:tr.pan,lastNote:tr.lastNote}))}))}catch(e){}}
+  cache:Object.fromEntries(Object.entries(tr.cache).map(([k,a])=>[k,enc(a,META[k])])),fp:enc(tr.fp,META.fx),pats:tr.pats,drum:tr.drum,mute:tr.mute,solo:tr.solo,vol:tr.vol,pan:tr.pan,ch:tr.ch,lastNote:tr.lastNote}))}))}catch(e){}}
 function load(){let o=null;try{o=JSON.parse(localStorage.getItem('octavio.groove')||'null')}catch(e){}
   if(!o||!o.tracks){demo();return}
   song=Object.assign(song,o.song||{});
@@ -4581,7 +4585,7 @@ function load(){let o=null;try{o=JSON.parse(localStorage.getItem('octavio.groove
     for(const k in s.cache||{})if(META[k])tr.cache[k]=dec(s.cache[k],META[k]);tr.fp=dec(s.fp,META.fx);
     if(Array.isArray(s.pats))tr.pats=Array.from({length:NPAT},(_,p)=>s.pats[p]&&Array.isArray(s.pats[p].steps)?{len:s.pats[p].len||NST,steps:Array.from({length:NST},(_,k)=>s.pats[p].steps[k]||null)}:emptyPat());
     if(Array.isArray(s.drum))tr.drum=Array.from({length:NPAT},(_,p)=>s.drum[p]||null);
-    Object.assign(tr,{mute:!!s.mute,solo:!!s.solo,vol:s.vol!=null?s.vol:.8,pan:s.pan||0,lastNote:s.lastNote||48});return tr});
+    Object.assign(tr,{mute:!!s.mute,solo:!!s.solo,vol:s.vol!=null?s.vol:.8,pan:s.pan||0,lastNote:s.lastNote||48,ch:s.ch!=null?s.ch:t+1});return tr});
   while(T.length<NT)T.push(newTrack(T.length))}
 load();
 
@@ -4764,6 +4768,7 @@ function drawPat(){const t=view.t,tr=T[t];gpanel.innerHTML='';patCells=[];const 
     tools.appendChild(el('span','gcap','LENGTH'));btn('−',()=>{p.len=Math.max(1,p.len-1);dirty();drawPat();drawRail()});tools.appendChild(el('span','gval',String(p.len)));btn('+',()=>{p.len=Math.min(NST,p.len+1);dirty();drawPat();drawRail()});
     tools.appendChild(el('span','gsp'));
     btn('TRANSPOSE −',()=>{p.steps.forEach(s=>s&&s.forEach(x=>x.n=Math.max(0,x.n-1)));dirty();drawPat()});btn('+',()=>{p.steps.forEach(s=>s&&s.forEach(x=>x.n=Math.min(127,x.n+1)));dirty();drawPat()})}
+  tools.appendChild(el('span','gcap','MIDI CH'));tools.appendChild(chSel(t));
   tools.appendChild(el('div','grow'));
   btn('COPY',()=>{clip=tr.eng==='dr8'?{drum:DRUMI.map(i=>tr.ep[i])}:{pat:JSON.parse(JSON.stringify(p))};drawPat()});
   const pb=btn('PASTE',()=>{if(!clip)return;if(clip.drum&&tr.eng==='dr8'){DRUMI.forEach((i,k)=>tr.ep[i]=clip.drum[k]);if(tr.syn)tr.syn.port.postMessage({t:'p',p:tr.ep})}
@@ -4813,6 +4818,30 @@ function setEngine(t,id){const tr=T[t];if(tr.eng===id)return;tr.cache[tr.eng]=tr
   if(id==='dr8'){const g=tr.drum[song.pat];if(g)DRUMI.forEach((i,k)=>tr.ep[i]=g[k])}
   if(ctx)buildSyn(t);selStep=-1;dirty();show(t,view.kind)}
 
+// ---------- MIDI channel of each track ----------
+// 1-16, ALL (every channel) or none. Notes, pitch bend, sustain and all-notes-off on a channel go to the tracks on it (with REC on
+// they are recorded there); a channel no track uses plays the selected track, so a single keyboard still works.
+// CCs move the selected track's controls when they come on its channel.
+const CHN=['\u2014',...Array.from({length:16},(_,c)=>String(c+1)),'ALL'];
+function chSel(t,onChange){const tr=T[t];const s=el('select','gsel gmc');s.setAttribute('aria-label','MIDI channel of track '+(t+1));s.title='MIDI channel of this track';
+  CHN.forEach((n,i)=>{const o=el('option',null,n);o.value=i;s.appendChild(o)});s.value=tr.ch;s.onchange=()=>{tr.ch=+s.value;dirty();onChange&&onChange()};return s}
+const chSus=Array.from({length:16},()=>({on:false,held:new Set()}));
+function midiTrack(t,m){const tr=T[t];if(!tr.syn)return;
+  if(tr.eng==='dr8'){if(m.t==='off')return;if(m.t==='on')m={t:'hit',tr:DR8_GM[m.n]!=null?DR8_GM[m.n]:((m.n-36)%8+8)%8}}
+  liveNote(t,m);wake(tr);tr.syn.port.postMessage(m);if(m.t==='on'||m.t==='hit')flashRail(t)}
+const onMidi0=onMidi;
+onMidi=function(e){const st=e.data[0],a=e.data[1],b=e.data[2];if(st>=0xf8||!ctx)return onMidi0(e);
+  const type=st&0xf0,ch=st&15;const tg=[];T.forEach((tr,t)=>{if(tr.ch===ch+1||tr.ch===17)tg.push(t)});
+  if(!tg.length)return onMidi0(e);                       // nobody on this channel: the selected track plays it
+  try{midiLed()}catch(_){}const S=chSus[ch];
+  if(type===0x90&&b>0){S.held.delete(a);tg.forEach(t=>midiTrack(t,{t:'on',n:a,v:.15+.85*b/127}));return}
+  if(type===0x80||type===0x90){if(S.on){S.held.add(a);return}tg.forEach(t=>midiTrack(t,{t:'off',n:a}));return}
+  if(type===0xe0){const v=(((b<<7)|a)-8192)/8192*(typeof bendRange==='number'?bendRange:2);tg.forEach(t=>T[t].syn&&T[t].syn.port.postMessage({t:'bend',v}));return}
+  if(type===0xb0){if(a===64){S.on=b>=64;if(!S.on){S.held.forEach(n=>tg.forEach(t=>midiTrack(t,{t:'off',n})));S.held.clear()}return}
+    if(a===120||a===123){tg.forEach(t=>T[t].syn&&T[t].syn.port.postMessage({t:'alloff'}));return}
+    if(tg.includes(view.t))onMidi0({data:[0xb0|midiBase,a,b],timeStamp:e.timeStamp})}};
+try{if(midiAccess)midiBind()}catch(_){}
+
 // ---------- MIX view ----------
 function vfader(get,set,label,color){const w=el('div','gfad');const tr_=el('div','gft');tr_.tabIndex=0;tr_.setAttribute('role','slider');tr_.setAttribute('aria-label',label);const f=el('i');if(color)f.style.background=color;tr_.appendChild(f);w.appendChild(tr_);
   const up=()=>{f.style.height=(get()*100)+'%'};const setE=e=>{const r=tr_.getBoundingClientRect();set(Math.min(1,Math.max(0,1-(e.clientY-r.top)/r.height)));up()};
@@ -4821,7 +4850,7 @@ function vfader(get,set,label,color){const w=el('div','gfad');const tr_=el('div'
 function drawMix(){gpanel.innerHTML='';const wt=el('div','wt');wt.innerHTML='<i></i>MIXER';gpanel.appendChild(wt);const body=el('div','gmix');gpanel.appendChild(body);
   T.forEach((tr,t)=>{const s=el('div','gch'+(t===view.t?' on':''));s.style.setProperty('--c',COL[t]);s.appendChild(el('b',null,String(t+1)));s.appendChild(el('span','gen',META[tr.eng].name));
     const pan=el('input');pan.type='range';pan.min=-1;pan.max=1;pan.step=.01;pan.value=tr.pan;pan.setAttribute('aria-label','Pan track '+(t+1));pan.ondblclick=()=>{pan.value=0;pan.oninput()};
-    pan.oninput=()=>{tr.pan=+pan.value;mixApply();dirty()};s.appendChild(el('span','gcap','PAN'));s.appendChild(pan);
+    pan.oninput=()=>{tr.pan=+pan.value;mixApply();dirty()};s.appendChild(el('span','gcap','MIDI CH'));s.appendChild(chSel(t));s.appendChild(el('span','gcap','PAN'));s.appendChild(pan);
     s.appendChild(vfader(()=>tr.vol,v=>{tr.vol=v;mixApply();dirty()},'Volume track '+(t+1),COL[t]));
     const ms=el('div','gms');const m=el('button',tr.mute?'on':'','M'),so=el('button',tr.solo?'on':'','S');m.onclick=()=>{tr.mute=!tr.mute;mixApply();drawMix();drawRail();dirty()};so.onclick=()=>{tr.solo=!tr.solo;mixApply();drawMix();drawRail();dirty()};
     ms.append(m,so);s.appendChild(ms);s.onclick=e=>{if(e.target===s||e.target.tagName==='B'){view.t=t;drawMix();drawRail()}};body.appendChild(s)});
