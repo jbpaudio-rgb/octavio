@@ -722,7 +722,29 @@ function renderPresets(){const all=pstore(),mine=all[__eng.id]||[];presetMenu.in
     sl.appendChild(b)}presetMenu.appendChild(sl);
   const acts=el('div','acts');const sv=el('button',presetSave?'on':'','SAVE');sv.onclick=()=>{presetSave=!presetSave;renderPresets()};
   const init=el('button',null,'INIT ENGINE');init.onclick=()=>{D.forEach((d,i)=>P[i]=d.df);views.forEach(w=>w.update());send();closePresets()};
-  acts.append(sv,init);presetMenu.appendChild(acts);presetMenu.appendChild(el('div','hint','8 banks of 8. Presets are kept in this browser only. MIDI program change 1\u201364 loads A1\u2013H8.'))}
+  acts.append(sv,init,...fileActs(head));presetMenu.appendChild(acts);presetMenu.appendChild(el('div','hint','8 banks of 8. Presets are kept in this browser: EXPORT saves them all in a file (with the GROOVE projects), IMPORT adds a file\u2019s. MIDI program change 1\u201364 loads A1\u2013H8.'))}
+// presets in a file: every engine's sounds and the GROOVE projects (both apps share this browser's storage), to keep or move elsewhere
+const GPKEY='octavio.groove.presets';
+function presetFileText(){let pr=[];try{pr=JSON.parse(localStorage.getItem(GPKEY)||'[]')}catch(e){}
+  return JSON.stringify({format:'octavio-presets',v:1,date:new Date().toISOString(),sounds:pstore(),projects:pr})}
+function saveFile(name,text){const blob=new Blob([text],{type:'application/json'});let f=null;try{f=new File([blob],name,{type:'application/json'})}catch(e){}
+  if(f&&document.body.classList.contains('touch')&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f]}).catch(()=>{});return}   // iPad: the share sheet (Save to Files)
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}
+function pickFile(cb){const i=document.createElement('input');i.type='file';i.accept='.json,application/json';i.style.display='none';document.body.appendChild(i);
+  i.onchange=()=>{const f=i.files[0];i.remove();if(f)f.text().then(cb)};i.click()}
+// imported entries keep their slot when it is free (or already the same); otherwise they go in the first free slot
+function mergeList(dst,src,max){let a=0,s=0;src.slice(0,max).forEach((x,k)=>{if(!x)return;if(dst[k]&&JSON.stringify(dst[k])===JSON.stringify(x))return;
+  if(!dst[k]){dst[k]=x;a++;return}let j=-1;for(let q=0;q<max;q++)if(!dst[q]){j=q;break}if(j<0){s++;return}dst[j]=x;a++});return [a,s]}
+function importPresets(text){let o=null;try{o=JSON.parse(text)}catch(e){}if(!o||o.format!=='octavio-presets')return 'NOT AN OCTAVIO PRESET FILE';
+  let a=0,s=0;
+  if(o.sounds&&typeof o.sounds==='object'){const st=pstore();for(const id in o.sounds){if(!Array.isArray(o.sounds[id]))continue;st[id]=st[id]||[];const [x,y]=mergeList(st[id],o.sounds[id],64);a+=x;s+=y}
+    if(!pwrite(st))return 'NOT ENOUGH ROOM IN THIS BROWSER'}
+  if(Array.isArray(o.projects)){let pr=[];try{pr=JSON.parse(localStorage.getItem(GPKEY)||'[]')}catch(e){}const [x,y]=mergeList(pr,o.projects,64);a+=x;s+=y;
+    try{localStorage.setItem(GPKEY,JSON.stringify(pr))}catch(e){return 'NOT ENOUGH ROOM IN THIS BROWSER'}}
+  return a+' ADDED'+(s?' \u00B7 '+s+' SKIPPED (FULL)':'')}
+function fileActs(head){const ex=el('button',null,'EXPORT');ex.title='Save all presets and projects in a file';ex.onclick=()=>saveFile('octavio-presets-'+new Date().toISOString().slice(0,10)+'.json',presetFileText());
+  const im=el('button',null,'IMPORT');im.title='Add the presets and projects of a file';im.onclick=()=>pickFile(t=>{const r=importPresets(t);presetSave=false;renderPresets();const h=presetMenu.querySelector('.ph');if(h)h.lastChild.textContent=r});
+  return document.body.classList.contains('inplugin')?[]:[ex,im]}
 function closePresets(){presetMenu.hidden=true;presetSave=false;presetBtn.setAttribute('aria-expanded','false')}
 presetBtn.onclick=()=>{if(presetMenu.hidden){renderPresets();presetMenu.hidden=false;presetBtn.setAttribute('aria-expanded','true')}else closePresets()};
 document.addEventListener('pointerdown',e=>{if(!presetMenu.hidden&&!e.target.closest('.presetbox'))closePresets()});
