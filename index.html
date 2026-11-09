@@ -340,6 +340,10 @@ body.touch #plug.nokb{grid-template-rows:auto minmax(0,1fr) auto}
 .spbtns .sprs{width:auto;flex:none;max-width:200px}
 .spbtns .sprs{max-width:112px}.spbtns button{padding:0 11px}
 
+/* rotary switches (MINI range and waveform) and switches stacked in a column */
+.ctl.rot{width:72px}.rotk{width:70px;height:66px}.rotk text{font-family:var(--f-label);font-weight:700;font-size:9.5px;letter-spacing:.02em}
+.tstack{display:flex;flex-direction:column;align-items:flex-start;gap:0;justify-content:center;min-height:58px}.tstack .tog{padding:2px 4px}
+
 /* ===================== Touch view (iPad / iPhone) ===================== */
 #tabbar{display:none}
 .viewbtn{font-size:11px;padding:6px 10px}
@@ -673,6 +677,26 @@ function __bind(d,idx,p,f,src,dst,dstp){D=d;IDX=idx;P=p;fmt=f;SRC=src;DST=dst;DS
 // ===================== Widgets =====================
 const views=[];  // {i, update()}
 function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e}
+// a rotary switch for a choice (like the Minimoog's RANGE and WAVEFORM): the positions printed around it, it clicks from one to the next.
+// Drag up or down to turn it, or tap it to step to the next position.
+function rotary(id,name,labels){const i=IDX[id],d=D[i],n=Math.round(d.mx-d.mn)+1;const c=el('div','ctl rot');const nm=el('div','nm',name||d.nm),vl=el('div','vl');
+  const ang=j=>n>1?-135+270*j/(n-1):0;const sk=SKIN_BODY[__skin]?__skin:'moog';let marks='';
+  for(let j=0;j<n;j++){const a=ang(j)*Math.PI/180,s=Math.sin(a),co=Math.cos(a);
+    marks+=`<line x1="${(30+21*s).toFixed(2)}" y1="${(30-21*co).toFixed(2)}" x2="${(30+25*s).toFixed(2)}" y2="${(30-25*co).toFixed(2)}" stroke-width="2" stroke-linecap="round"/>`+
+      `<text x="${(30+33*s).toFixed(2)}" y="${(30-33*co+3).toFixed(2)}" text-anchor="middle">${(labels&&labels[j])||d.ch[j]}</text>`}
+  const k=el('div','fwknob rotk','<svg viewBox="-14 -12 88 84" aria-hidden="true"><g class="tk">'+marks+'</g>'+SKIN_BODY[sk]+'<g class="pt">'+SKIN_PTR[sk]+'</g></svg>');
+  const tk=k.querySelectorAll('.tk line'),tx=k.querySelectorAll('.tk text'),pt=k.querySelector('.pt');
+  const update=()=>{const j=Math.round(P[i]-d.mn);pt.setAttribute('transform','rotate('+ang(j).toFixed(1)+' 30 30)');
+    tk.forEach((l,q)=>l.setAttribute('stroke',q===j?'#f2efe6':'#4a4a4a'));tx.forEach((t,q)=>t.setAttribute('fill',q===j?'#f2efe6':'#8a877f'));vl.textContent=fmt(i,P[i])};
+  k.tabIndex=0;k.setAttribute('role','slider');k.setAttribute('aria-label',name||d.nm);c.append(k,nm,vl);
+  let y0=0,acc=0,moved=0;
+  k.addEventListener('pointerdown',e=>{y0=e.clientY;acc=P[i];moved=0;k.setPointerCapture(e.pointerId);__bubShow(i)});
+  k.addEventListener('pointermove',e=>{if(!k.hasPointerCapture(e.pointerId))return;const dy=y0-e.clientY;y0=e.clientY;moved+=Math.abs(dy);acc=Math.min(d.mx+.49,Math.max(d.mn-.49,acc+dy/32));
+    const v=Math.round(acc);if(v!==Math.round(P[i]))setP(i,v)});
+  k.addEventListener('pointerup',()=>{if(moved<6)setP(i,Math.round(P[i])>=d.mx?d.mn:Math.round(P[i])+1)});
+  __hold(k,i);
+  k.addEventListener('keydown',e=>{if(e.key==='ArrowUp'||e.key==='ArrowRight'){setP(i,Math.min(d.mx,Math.round(P[i])+1));e.preventDefault()}if(e.key==='ArrowDown'||e.key==='ArrowLeft'){setP(i,Math.max(d.mn,Math.round(P[i])-1));e.preventDefault()}});
+  views.push({i,update});update();c.dataset.p=id;return c}
 function setP(i,v){const d=D[i];v=Math.min(d.mx,Math.max(d.mn,v));P[i]=v;views.forEach(w=>w.i===i&&w.update());send();if(__bubI===i)__bubSet()}
 // Touch helpers: a large value read-out while a control is held, two-finger fine adjust, long-press to modulate
 let __bubI=-1,__touches=0;const __bub=document.createElement('div');__bub.id='bubble';__bub.hidden=true;
@@ -1334,11 +1358,14 @@ __bind(D,IDX,P,fmt,SRC,DST,DSTP);
 const V=__pg('VOICE');
 let s=section(V,'CONTROLLERS','var(--hdr)');
 grp(s,null,[knob('tune',true),knob('glide'),toggle('glideon'),knob('modmix'),knob('modamt')]);
-grp(s,null,[toggle('oscmod'),toggle('osc3kb'),toggle('filtmod'),toggle('decaysw'),knob('drift',true)]);
+const stack=a=>{const t=el('div','tstack');a.forEach(x=>t.appendChild(x));return t};   // switches one above the other
+grp(s,null,[stack([toggle('oscmod'),toggle('osc3kb'),toggle('filtmod'),toggle('decaysw')]),knob('drift',true)]);
 s=section(V,'OSCILLATOR BANK','var(--hdr)');
-grp(s,'OSCILLATOR 1',[select('o1range'),select('o1wave')]);
-grp(s,'OSCILLATOR 2',[select('o2range'),knob('o2freq'),select('o2wave')]);
-grp(s,'OSCILLATOR 3',[select('o3range'),knob('o3freq'),select('o3wave')]);
+// rotary switches with their positions around them, as on the panel
+const RG=['LO','32','16','8','4','2'],WV=['TRI','SHK','SAW','SQR','WID','NAR'],WV3=['TRI','SHK','REV','SQR','WID','NAR'];
+grp(s,'OSCILLATOR 1',[rotary('o1range',null,RG),rotary('o1wave',null,WV)]);
+grp(s,'OSCILLATOR 2',[rotary('o2range',null,RG),knob('o2freq'),rotary('o2wave',null,WV)]);
+grp(s,'OSCILLATOR 3',[rotary('o3range',null,RG),knob('o3freq'),rotary('o3wave',null,WV3)]);
 s=section(V,'MIXER','var(--hdr)');
 grp(s,null,[knob('o1lvl'),toggle('o1on','ON'),knob('extlvl'),toggle('exton','ON')]);
 grp(s,null,[knob('o2lvl'),toggle('o2on','ON'),knob('noiselvl'),toggle('noiseon','ON'),select('noisecol')]);
@@ -1346,7 +1373,7 @@ grp(s,null,[knob('o3lvl'),toggle('o3on','ON')]);
 s.appendChild(el('div','hint','Push the levels past 5 to drive the filter. EXT IN feeds the output back into the mixer for growl.'));
 s=section(V,'MODIFIERS','var(--hdr)',true);
 const fMeter=el('div','meter','<i></i>'),lMeter=el('div','meter','<i></i>');
-grp(s,'FILTER',[knob('cutoff'),knob('emph'),knob('camt'),toggle('kb1'),toggle('kb2')]);
+grp(s,'FILTER',[knob('cutoff'),knob('emph'),knob('camt'),stack([toggle('kb1'),toggle('kb2')])]);
 const fg=grp(s,'FILTER CONTOUR',[knob('fatt'),knob('fdec'),knob('fsus')]);fg.firstChild.appendChild(fMeter);
 const lg=grp(s,'LOUDNESS CONTOUR',[knob('latt'),knob('ldec'),knob('lsus')]);lg.firstChild.appendChild(lMeter);
 grp(s,'TRIGGER',[select('trig')]);
