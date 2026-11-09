@@ -1,5 +1,5 @@
 // Offline copy: the page is fetched from the network first (so updates arrive), and from this cache without a connection
-const V='m55-7e0c282df6',FILES=['./','index.html','manifest.webmanifest?v=c5d463a6','icon-180-c5d463a6.png','icon-192-c5d463a6.png','icon-512-c5d463a6.png'];
+const V='m55-2b0135d8d6',FILES=['./','index.html','manifest.webmanifest?v=c5d463a6','icon-180-c5d463a6.png','icon-192-c5d463a6.png','icon-512-c5d463a6.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(FILES)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(n=>n!==V).map(n=>caches.delete(n)))));self.clients.claim()});
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;const u=new URL(e.request.url);

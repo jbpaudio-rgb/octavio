@@ -138,6 +138,8 @@ body.learn .kn{outline:1px dashed var(--lamp);outline-offset:2px}
 #kbdWrap{display:flex;gap:8px;padding-block:8px calc(8px + env(safe-area-inset-bottom,0px));height:118px;flex:none}
 .octs{display:flex;flex-direction:column;gap:6px;justify-content:center;align-items:center}
 .octs button{width:44px;padding:0}
+#kHold{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:58px;padding:0;flex:none}
+#kHold.on{border-color:var(--lamp);color:var(--lamp)}
 .octs span{font-family:var(--f-mono);font-size:11px;color:var(--lamp)}
 #kbd{flex:1;position:relative;touch-action:none;background:#0b0a09;border-radius:4px;overflow:hidden;border-top:7px solid #5c331b;min-width:0}
 .wk{position:absolute;top:0;bottom:0;background:linear-gradient(#f4f0e4,#d9d2bf);border-right:1px solid #857c6d;border-radius:0 0 4px 4px}
@@ -199,6 +201,7 @@ body.learn .kn{outline:1px dashed var(--lamp);outline-offset:2px}
 
 <div id="kbdWrap">
   <div class="octs"><button id="kUp" aria-label="Octave plus haut">▲</button><span id="kOct">C3</span><button id="kDn" aria-label="Octave plus bas">▼</button></div>
+  <button id="kHold" aria-pressed="false" title="Garde les notes après relâchement (pédale de sustain MIDI aussi)"><span class="led" id="hled"></span>Hold</button>
   <div id="kbd" aria-label="Clavier"></div>
 </div>
 
@@ -226,6 +229,7 @@ body.learn .kn{outline:1px dashed var(--lamp);outline-offset:2px}
       <li><b>Modules :</b> + Module ajoute à la première place libre (une rangée est créée si besoin). Glisse l’en-tête pour déplacer.</li>
       <li><b>Tensions :</b> 1 V/oct partout. Les enveloppes sortent 0 à 5 V : passe par l’atténuateur 995 pour doser. Une entrée 995 libre donne +5 V fixe.</li>
       <li><b>Zoom :</b> pincer à deux doigts ou − / +. Clavier d’ordi : A W S E D F T G Y H U J K, Z/X pour l’octave.</li>
+      <li><b>Hold :</b> les notes restent tenues après relâchement ; la note suivante remplace les notes tenues, un accord joué ensemble reste ensemble. La pédale de sustain MIDI (CC 64) fait la même chose.</li>
       <li><b>MIDI :</b> les notes jouent le module 950 ; le module Q174 donne hauteur, gate, vélocité, CC, bend, horloge. Bouton MIDI : touche un potard puis bouge un contrôleur pour l’assigner (point ambré = assigné). Le MIDI web marche dans Chrome et Edge, pas dans Safari ni sur iPad.</li>
     </ul>
     <button class="go" id="helpClose">Compris</button>
@@ -1264,8 +1268,17 @@ function buildKbd(){ kbd.innerHTML=''; keyEls={}; const w=kbd.clientWidth||300; 
     if([0,2,5,7,9].includes(s)&&i<nW-1){ const b=el('div','bk'); b.style.left=(i+1)*kw-kw*0.31+'px'; b.style.width=kw*0.62+'px'; b.dataset.n=n+1; kbd.appendChild(b); keyEls[n+1]=b; } }
   $('#kOct').textContent='C'+(Math.floor(kbBase/12)-1);
   for(const n in noteCnt) if(noteCnt[n]>0&&keyEls[n]) keyEls[n].classList.add('on'); }
-function noteOn(n){ if(!audioOn){ $('#startOv').hidden=true; startAudio(); } noteCnt[n]=(noteCnt[n]||0)+1; if(noteCnt[n]===1){ send({t:'note',on:1,n}); keyEls[n]&&keyEls[n].classList.add('on'); } }
-function noteOff(n){ if(!noteCnt[n]) return; noteCnt[n]--; if(noteCnt[n]===0){ send({t:'note',on:0,n}); keyEls[n]&&keyEls[n].classList.remove('on'); } }
+let hold=false, pedal=false, physTotal=0; const phys={}, latched=new Set();
+const holding=()=>hold||pedal;
+function releaseLatched(){ for(const l of latched) rawOff(l); latched.clear(); }
+function setHold(on){ hold=on; const b=$('#kHold'); b.classList.toggle('on',on); b.setAttribute('aria-pressed',String(on)); $('#hled').classList.toggle('on',on); if(!holding()) releaseLatched(); }
+$('#kHold').onclick=()=>setHold(!hold);
+function noteOn(n){ if(holding()&&physTotal===0&&latched.size) releaseLatched();
+  if(latched.has(n)){ latched.delete(n); rawOff(n); }
+  phys[n]=(phys[n]||0)+1; physTotal++; rawOn(n); }
+function noteOff(n){ if(!phys[n]) return; phys[n]--; physTotal--; if(holding()) latched.add(n); else rawOff(n); }
+function rawOn(n){ if(!audioOn){ $('#startOv').hidden=true; startAudio(); } noteCnt[n]=(noteCnt[n]||0)+1; if(noteCnt[n]===1){ send({t:'note',on:1,n}); keyEls[n]&&keyEls[n].classList.add('on'); } }
+function rawOff(n){ if(!noteCnt[n]) return; noteCnt[n]--; if(noteCnt[n]===0){ send({t:'note',on:0,n}); keyEls[n]&&keyEls[n].classList.remove('on'); } }
 function noteAt(e){ const t=document.elementFromPoint(e.clientX,e.clientY); const k=t&&t.closest&&t.closest('.wk,.bk'); return k&&kbd.contains(k)?+k.dataset.n:null; }
 kbd.addEventListener('pointerdown',e=>{ e.preventDefault(); try{kbd.setPointerCapture(e.pointerId);}catch(_){} const n=noteAt(e); if(n!=null){ kbPtr.set(e.pointerId,n); noteOn(n); } });
 kbd.addEventListener('pointermove',e=>{ if(!kbPtr.has(e.pointerId)) return; const cur=kbPtr.get(e.pointerId), n=noteAt(e);
@@ -1299,7 +1312,7 @@ function onMidi(d){ const st=d[0], ty=st&0xF0; if(st===0xFE) return;
   send({t:'midi',d:[st,d[1]||0,d[2]||0]}); $('#mled').classList.add('on'); clearTimeout(onMidi.t); onMidi.t=setTimeout(()=>$('#mled').classList.remove('on'),120);
   if(ty===0x90&&d[2]>0){ if(audioOn) noteOn(d[1]); else if(!midiNote){ midiNote=true; toast('Touche « Son » pour entendre le MIDI'); } }
   else if(ty===0x80||(ty===0x90&&d[2]===0)){ if(audioOn) noteOff(d[1]); }
-  else if(ty===0xB0) ccIn((st&15)+1,d[1],d[2]); }
+  else if(ty===0xB0){ if(d[1]===64){ pedal=d[2]>=64; if(!holding()) releaseLatched(); return; } ccIn((st&15)+1,d[1],d[2]); } }
 let midiState='none';
 function midiMsg(){ return midiState==='none'?'Ce navigateur n’a pas le MIDI web (Safari et iPad ne l’ont pas) : ouvre l’app dans Chrome ou Edge.'
   : midiState==='blocked'?'Le MIDI est bloqué dans cette fenêtre : ouvre le fichier de l’app directement dans Chrome ou Edge.'
