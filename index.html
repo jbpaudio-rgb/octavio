@@ -159,7 +159,7 @@ select{font-family:var(--f-label);font-weight:700;font-size:12px;letter-spacing:
 /* CS8 ribbon, VC3 joystick and pin matrix */
 .ribbon{position:relative;height:56px;width:100%;background:linear-gradient(#202020,#0b0b0b);border:1px solid #000;border-radius:4px;touch-action:none;display:grid;place-items:center;font-family:var(--f-label);font-size:12px;letter-spacing:.2em;color:var(--soft)}
 .ribbon i{position:absolute;top:6px;bottom:6px;width:6px;margin-left:-3px;background:var(--led);border-radius:3px;opacity:0;box-shadow:0 0 8px var(--led)}
-.joy{position:relative;width:150px;height:150px;border-radius:10px;background:radial-gradient(circle,#2a2a2a,#0b0b0b);border:1px solid #000;touch-action:none}
+.joy{position:relative;width:124px;height:124px;border-radius:10px;background:radial-gradient(circle,#2a2a2a,#0b0b0b);border:1px solid #000;touch-action:none}
 .joy i{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#eee,#999);box-shadow:0 2px 4px #000}
 .pinwrap{overflow-x:auto;width:100%}
 table.pins{border-collapse:collapse;font-family:var(--f-label);font-size:11px}
@@ -2092,15 +2092,17 @@ function fader(id,name,cap){const i=IDX[id],d=D[i];const c=el('div','ctl fad');c
 
 const V=__pg('VOICE');
 const W='#dcd8cf',R='#d8432c',O='#e8913a',BL='#4a7fc8';
+// menus stacked so LFO, VCOs, MIXER and ENVELOPES share one page
+const stack=a=>{const t=el('div','tstack');a.forEach(x=>t.appendChild(x));return t};
 let s=section(V,'LFO / VCO MODULATOR','var(--hdr)');
 grp(s,'LFO',[fader('jrate','RATE',W),fader('jdelay','DELAY',W),select('jwave')]);
-grp(s,'VCO MOD',[fader('mlfo','LFO',O),fader('menv','ENV-1',O),select('mdest'),fader('pwm','PW/PWM',O),select('pwmsrc')]);
+grp(s,'VCO MOD',[fader('mlfo','LFO',O),fader('menv','ENV-1',O),fader('pwm','PW/PWM',O),stack([select('mdest'),select('pwmsrc')])]);
 s=section(V,'VCO-1 / VCO-2','var(--hdr)');
-grp(s,'VCO-1',[select('r1'),select('w1'),fader('cross','CROSS MOD',BL),toggle('sync')]);
-grp(s,'VCO-2',[select('r2'),select('w2'),fader('fine2','FINE',BL)]);
+grp(s,'VCO-1',[stack([select('r1'),select('w1')]),fader('cross','CROSS MOD',BL),toggle('sync')]);
+grp(s,'VCO-2',[stack([select('r2'),select('w2')]),fader('fine2','FINE',BL)]);
 s=section(V,'MIXER / HPF / VCF','var(--hdr)',true);
 grp(s,'SOURCE',[fader('mix','VCO1 / VCO2',W),fader('hpf','HPF',W)]);
-grp(s,'VCF',[select('slope'),fader('freq','CUTOFF',R),fader('res','RES',R),select('envsel'),fader('venv','ENV',R),fader('vlfo','LFO',R),fader('kybd','KEY',R)]);
+grp(s,'VCF',[stack([select('slope'),select('envsel')]),fader('freq','CUTOFF',R),fader('res','RES',R),fader('venv','ENV',R),fader('vlfo','LFO',R),fader('kybd','KEY',R)]);
 grp(s,'VCA',[fader('valfo','LFO',W),fader('vcalvl','LEVEL',W)]);
 s=section(V,'ENVELOPES','var(--hdr)',true);
 const fMeter=el('div','meter','<i></i>'),lMeter=el('div','meter','<i></i>');
@@ -2524,24 +2526,28 @@ s=section(V,'NOISE / RING / FILTER','var(--hdr)');
 grp(s,'NOISE',[ck('ncol','COLOUR',GR),ck('nlvl','LEVEL',BL)]);
 grp(s,'RING',[ck('rlvl','LEVEL',BL)]);
 grp(s,'FILTER',[ck('ff','FREQ',RD),ck('fres','RESPONSE',RD),ck('flvl','LEVEL',BL)]);
+// the joystick beside NOISE / RING / FILTER, so the whole voice fits on one page
+s=section(V,'JOYSTICK','var(--hdr)');
+const joy=el('div','joy','<i></i>');const jd=joy.firstChild;
+const jUpd=()=>{jd.style.left=((P[IDX.jx]+1)*50)+'%';jd.style.top=((1-P[IDX.jy])*50)+'%'};views.push({i:IDX.jx,update:jUpd},{i:IDX.jy,update:jUpd});
+// the stick moves with the finger from where it is (on iPad the zoomed panel can misplace an absolute touch point)
+let jx0=0,jy0=0,jcx=0,jcy=0,jw=1,jh=1;const jSet=e=>{setP(IDX.jx,cl2(jx0+2*(e.clientX-jcx)/jw));setP(IDX.jy,cl2(jy0-2*(e.clientY-jcy)/jh))};
+const cl2=x=>Math.max(-1,Math.min(1,x));
+joy.addEventListener('pointerdown',e=>{joy.setPointerCapture(e.pointerId);const r=joy.getBoundingClientRect();jw=r.width||1;jh=r.height||1;jcx=e.clientX;jcy=e.clientY;jx0=P[IDX.jx];jy0=P[IDX.jy]});
+joy.addEventListener('dblclick',()=>{setP(IDX.jx,0);setP(IDX.jy,0)});joy.addEventListener('pointermove',e=>{if(joy.hasPointerCapture(e.pointerId))jSet(e)});
+const jcol=el('div','gcolumn');jcol.append(ck('jrx','X RANGE',GR),ck('jry','Y RANGE',GR));joy.title='Patch STICK X and STICK Y in the MATRIX to steer anything';
+grp(s,null,[joy,jcol]);jUpd();
 s=section(V,'ENVELOPE SHAPER','var(--hdr)');
 const fMeter=el('div','meter','<i></i>');
 const eg=grp(s,null,[ck('ea','ATTACK',YL),ck('eon','ON',YL),ck('edec','DECAY',YL),ck('eoff','OFF',YL),ck('etrap','TRAPEZOID',BL),ck('esig','SIGNAL',BL)]);
 const capEl=el('div','cap','TRAPEZOID');capEl.appendChild(fMeter);eg.insertBefore(capEl,eg.firstChild);
 const trigBtn=el('button',null,'ATTACK');trigBtn.onclick=()=>{if(node)node.port.postMessage({t:'on',n:lastKey,v:.9});setTimeout(()=>node&&node.port.postMessage({t:'off',n:lastKey}),120)};
-grp(s,null,[trigBtn,select('trig')]);
-s.appendChild(el('div','hint','OFF at MANUAL: the envelope fires from the keyboard or the ATTACK button and holds while a key is down. Lower OFF and it repeats on its own.'));
+const tcol=el('div','tstack');tcol.append(trigBtn,select('trig'));grp(s,null,[tcol]);
+fMeter.title='OFF at MANUAL: the envelope fires from the keyboard or the ATTACK button and holds while a key is down. Lower OFF and it repeats on its own.';
 s=section(V,'REVERB / OUTPUT','var(--hdr)');
 grp(s,'REVERB',[ck('rmix','MIX',GN),ck('rlev','LEVEL',BL)]);
 grp(s,'OUTPUT',[ck('out1','CH 1',BL),ck('out2','CH 2',BL),ck('pan1','PAN 1',GR),ck('pan2','PAN 2',GR),ck('tone','FILTER',GR),ck('tune','TUNE',GR)]);
-s=section(V,'JOYSTICK','var(--hdr)');
-const joy=el('div','joy','<i></i>');const jd=joy.firstChild;
-const jUpd=()=>{jd.style.left=((P[IDX.jx]+1)*50)+'%';jd.style.top=((1-P[IDX.jy])*50)+'%'};views.push({i:IDX.jx,update:jUpd},{i:IDX.jy,update:jUpd});
-const jSet=e=>{const r=joy.getBoundingClientRect();setP(IDX.jx,cl2(((e.clientX-r.left)/r.width)*2-1));setP(IDX.jy,cl2(1-((e.clientY-r.top)/r.height)*2))};
-const cl2=x=>Math.max(-1,Math.min(1,x));
-joy.addEventListener('pointerdown',e=>{joy.setPointerCapture(e.pointerId);jSet(e)});joy.addEventListener('pointermove',e=>{if(joy.hasPointerCapture(e.pointerId))jSet(e)});
-grp(s,null,[joy,ck('jrx','X RANGE',GR),ck('jry','Y RANGE',GR)]);jUpd();
-s.appendChild(el('div','hint','Patch STICK X and STICK Y in the MATRIX to steer anything.'));
+
 
 // ===================== Pin matrix =====================
 const X=__pg('PATCH MATRIX');
