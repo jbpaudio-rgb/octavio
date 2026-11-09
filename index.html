@@ -352,6 +352,10 @@ body.touch #plug.nokb{grid-template-rows:auto minmax(0,1fr) auto}
 .holdb.on{background:var(--led);border-color:var(--led);color:#000}.holdb.on i{background:#fff;box-shadow:0 0 6px #fff}
 body.touch .holdb{min-height:40px;flex:1;justify-content:center}
 .fad.fadn{width:34px}.fad.fadn .nm{font-size:10px;letter-spacing:.02em}
+/* EASEL: the switch groups wrap onto more lines instead of scrolling sideways; inside a group the switches stack when they need to */
+.eswstrip{flex-wrap:wrap;overflow-x:visible;width:auto;min-width:0;flex:1 1 100%}
+.eswg{flex:0 1 auto;min-width:0}
+.eswr{flex-wrap:wrap;row-gap:8px}
 
 /* ===================== Touch view (iPad / iPhone) ===================== */
 #tabbar{display:none}
@@ -5102,6 +5106,6 @@ window.__groove={get wasm(){return WASM},get T(){return T},META,show,play,stop,g
 })();
 
 </script>
-<script>window.__BUILD="bcd55006dc";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").then(r=>r.update()).catch(()=>{}));
+<script>window.__BUILD="19fc93f60a";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").then(r=>r.update()).catch(()=>{}));
 (function(){let busy=0;const chk=()=>{if(busy||!navigator.onLine)return;busy=1;fetch("version.json?"+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(j=>{busy=0;if(j&&j.v&&j.v!==window.__BUILD&&sessionStorage.getItem("octavio.reloaded")!==j.v){try{sessionStorage.setItem("octavio.reloaded",j.v)}catch(e){}location.reload()}}).catch(()=>{busy=0})};addEventListener("load",chk);document.addEventListener("visibilitychange",()=>{if(!document.hidden)chk()})})();</script>
 </body></html>

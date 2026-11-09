@@ -1,6 +1,6 @@
 // Offline copy: the page is fetched from the network first, bypassing the browser cache (so updates arrive), and from this cache without a connection.
 // Each app keeps its own cache (the apps share the site): it only clears its own older ones.
-const P='octavio-groove-',V=P+'bcd55006dc',FILES=['./','index.html','manifest.webmanifest?v=46290ae9','icon-180-46290ae9.png','icon-192-46290ae9.png','icon-512-46290ae9.png'];
+const P='octavio-groove-',V=P+'19fc93f60a',FILES=['./','index.html','manifest.webmanifest?v=46290ae9','icon-180-46290ae9.png','icon-192-46290ae9.png','icon-512-46290ae9.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(FILES)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(n=>(n.startsWith(P)||/^octavio-[0-9a-f]{10}$/.test(n))&&n!==V).map(n=>caches.delete(n)))));self.clients.claim()});
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;const u=new URL(e.request.url);if(u.pathname.endsWith('version.json'))return;
