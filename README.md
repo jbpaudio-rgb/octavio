@@ -4,6 +4,7 @@ Octavio Groove and the Octavio synths, as apps you install from Safari (iPad, iP
 
 - **Groove**: https://jbpaudio-rgb.github.io/octavio/ (8 tracks, a synth engine and an FX chain on each, sequencer, mixer)
 - **Synths**: https://jbpaudio-rgb.github.io/octavio/synth/ (the 10 synth engines and the sampler)
+- **M55**: https://jbpaudio-rgb.github.io/octavio/m55/ (modular system after the Moog System 55, with 5U, Corsynth and STG modules)
 
 On an iPad: open the link in Safari, tap Share, then **Add to Home Screen**. The app then opens full screen from its icon and
 works without a connection; it takes the newest version whenever it is opened online.
