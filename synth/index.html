@@ -344,6 +344,8 @@ body.touch #plug.nokb{grid-template-rows:auto minmax(0,1fr) auto}
 .ctl.rot{width:72px}.rotk{width:70px;height:66px}.rotk text{font-family:var(--f-label);font-weight:700;font-size:9.5px;letter-spacing:.02em}
 .tstack{display:flex;flex-direction:column;align-items:flex-start;gap:0;justify-content:center;min-height:58px}.tstack .tog{padding:2px 4px}
 .gcolumn{display:flex;flex-direction:column;gap:4px}
+.band.bstack{display:flex;flex-direction:column;gap:0;margin-bottom:0}
+.mixcol{display:flex;gap:6px 14px}.mixcol .gcolumn{gap:2px}.mixrow{display:flex;align-items:center;gap:2px}
 
 /* ===================== Touch view (iPad / iPhone) ===================== */
 #tabbar{display:none}
@@ -642,7 +644,12 @@ function __regroup(){const pages=Object.entries(__pages);const bands=[];
   pages.forEach(([pname,pg],pi)=>pg.querySelectorAll(':scope>.sec').forEach((s,si)=>{const h=s.querySelector('h2');let title=h?h.textContent.trim():pname;title=title.split(' \u2014 ')[0].split(' — ')[0];
     if(pi>0&&si===0&&title.toUpperCase().indexOf(pname)<0)title=pname+' · '+title;
     const inn=s.querySelector(':scope>.in');if(!inn)return;const band=el('div','band');band.appendChild(el('div','blabel',title));
-    const body=el('div','bbody');[...inn.children].forEach(k=>body.appendChild(k));band.appendChild(body);bands.push(band)}));
+    const body=el('div','bbody');[...inn.children].forEach(k=>body.appendChild(k));band.appendChild(body);
+    // sections marked data-stack="start" ... "end" go one above the other, as one column beside the next band
+    const st=s.dataset.stack,last=bands[bands.length-1];
+    if(last&&last.classList.contains('bstack')&&last.dataset.open){last.appendChild(band);last.dataset.t+=' & '+title;if(st==='end')delete last.dataset.open}
+    else if(st==='start'){const w=el('div','band bstack');w.dataset.t=title;w.dataset.open='1';w.appendChild(band);bands.push(w)}
+    else bands.push(band)}));
   engBody.innerHTML='';engBody.classList.add('bands');__bandList=bands;__bandsAll=bands}
 // Split the bands into as few pages as needed so the knobs stay full size; the page tabs carry the band titles
 let __bandList=null,__bandsAll=null,__pageZ=.74;
@@ -653,7 +660,7 @@ function __paginate(){if(!__bandList)return;const wrap=engBody.closest('.fitwrap
   const newPage=()=>{if(cur)cur.hidden=true;cur=el('div','engpage');engBody.appendChild(cur);pages.push({pg:cur,titles:[]})};newPage();
   __bandList.forEach(b=>{const P_=pages[pages.length-1];cur.appendChild(b);
     if(!P_.titles.length)w0=engBody.scrollWidth;else if(engBody.scrollHeight>H*1.04||engBody.scrollWidth>Math.max(W,w0)+1){newPage();cur.appendChild(b);w0=engBody.scrollWidth}
-    pages[pages.length-1].titles.push(b.firstChild.textContent)});
+    pages[pages.length-1].titles.push(b.dataset.t||b.firstChild.textContent)});
   __pages={};subTabs.innerHTML='';
   pages.forEach((p,i)=>{const nm=p.titles.join(' · ');__pages[nm]=p.pg;p.pg.hidden=i>0;
     const btn=el('button',i?'':'on',p.titles.map(t=>t.split(' · ').pop().split(' / ')[0]).join(' · '));btn.dataset.n=nm;btn.title=nm;btn.onclick=()=>__showSub(nm);subTabs.appendChild(btn)});
@@ -1184,21 +1191,21 @@ __bind(D,IDX,P,fmt,SRC,DST,DSTP);
 // ===================== Pages =====================
 
 const V=__pg('VOICE');
-let s=section(V,'CONTROLLERS','var(--hdr)');
+let s=section(V,'CONTROLLERS','var(--hdr)');s.parentElement.dataset.stack='start';   // CONTROLLERS over OSCILLATOR BANK, the MIXER beside them
 grp(s,null,[knob('tune',true),knob('glide'),toggle('glideon'),knob('modmix'),knob('modamt')]);
 const stack=a=>{const t=el('div','tstack');a.forEach(x=>t.appendChild(x));return t};   // switches one above the other
 grp(s,null,[stack([toggle('oscmod'),toggle('osc3kb'),toggle('filtmod'),toggle('decaysw')]),knob('drift',true)]);
-s=section(V,'OSCILLATOR BANK','var(--hdr)');
+s=section(V,'OSCILLATOR BANK','var(--hdr)');s.parentElement.dataset.stack='end';
 // rotary switches with their positions around them, as on the panel
 const RG=['LO','32','16','8','4','2'],WV=['TRI','SHK','SAW','SQR','WID','NAR'],WV3=['TRI','SHK','REV','SQR','WID','NAR'];
 grp(s,'OSCILLATOR 1',[rotary('o1range',null,RG),rotary('o1wave',null,WV)]);
 grp(s,'OSCILLATOR 2',[rotary('o2range',null,RG),knob('o2freq'),rotary('o2wave',null,WV)]);
 grp(s,'OSCILLATOR 3',[rotary('o3range',null,RG),knob('o3freq'),rotary('o3wave',null,WV3)]);
 s=section(V,'MIXER','var(--hdr)');
-grp(s,null,[knob('o1lvl'),toggle('o1on','ON'),knob('extlvl'),toggle('exton','ON')]);
-grp(s,null,[knob('o2lvl'),toggle('o2on','ON'),knob('noiselvl'),toggle('noiseon','ON'),select('noisecol')]);
-grp(s,null,[knob('o3lvl'),toggle('o3on','ON')]);
-s.appendChild(el('div','hint','Push the levels past 5 to drive the filter. EXT IN feeds the output back into the mixer for growl.'));
+// the levels one above the other, as on the panel: the oscillators in one column, EXT IN and NOISE in the other
+const mrow=(lv,on,extra)=>{const r=el('div','mixrow');r.append(knob(lv),stack([toggle(on,'ON')].concat(extra||[])));return r};
+const mcol=a=>{const c=el('div','gcolumn');a.forEach(x=>c.appendChild(x));return c};
+const mx=el('div','mixcol');mx.append(mcol([mrow('o1lvl','o1on'),mrow('o2lvl','o2on'),mrow('o3lvl','o3on')]),mcol([mrow('extlvl','exton'),mrow('noiselvl','noiseon'),rotary('noisecol',null,['WHT','PNK'])]));s.appendChild(mx);
 s=section(V,'MODIFIERS','var(--hdr)',true);
 const fMeter=el('div','meter','<i></i>'),lMeter=el('div','meter','<i></i>');
 grp(s,'FILTER',[knob('cutoff'),knob('emph'),knob('camt'),stack([toggle('kb1'),toggle('kb2')])]);
