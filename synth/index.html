@@ -346,6 +346,7 @@ body.touch #plug.nokb{grid-template-rows:auto minmax(0,1fr) auto}
 .gcolumn{display:flex;flex-direction:column;gap:4px}
 .band.bstack{display:flex;flex-direction:column;gap:0;margin-bottom:0}
 .mixcol{display:flex;gap:6px 14px}.mixcol .gcolumn{gap:2px}.mixrow{display:flex;align-items:center;gap:2px}
+.lpg2{display:grid;grid-template-columns:1fr 1fr;gap:4px}.lpg2 .ctl{width:auto;min-width:0}
 
 /* ===================== Touch view (iPad / iPhone) ===================== */
 #tabbar{display:none}
@@ -973,14 +974,18 @@ __bind(D,IDX,P,fmt,SRC,DST,DSTP);
 
 const V=__pg('VOICE');
 let s=section(V,'COMPLEX OSCILLATOR','var(--osc)',true);
-grp(s,'MODULATION OSC',[knob('mfreq'),knob('mfine',true),select('mwave'),toggle('mkbd')]);
-grp(s,'MODULATION',[knob('modidx'),select('moddest'),toggle('plock')]);
+// menus and switches stacked so the whole oscillator fits in one row
+const stack=a=>{const t=el('div','tstack');a.forEach(x=>t.appendChild(x));return t};
+grp(s,'MODULATION OSC',[knob('mfreq'),knob('mfine',true),stack([select('mwave'),toggle('mkbd')])]);
+grp(s,'MODULATION',[knob('modidx'),stack([select('moddest'),toggle('plock')])]);
 grp(s,'PRINCIPAL OSC',[knob('ppitch'),knob('pfine',true),knob('pwave'),knob('glide',true)]);
 grp(s,'TIMBRE',[knob('timbre'),knob('sym',true),knob('order')]);
 s=section(V,'LOPASS GATES','var(--gate)');const gc=el('div','cols');s.appendChild(gc);
 const cellM=[],fgM=[];
 for(let c=0;c<4;c++){const col=el('div','col');const hd=el('div','colhead',L[c]);const m=el('div','meter','<i></i>');hd.appendChild(m);cellM.push(m.firstChild);
-  col.append(hd,select('g'+c+'src','SOURCE'),select('g'+c+'mode'),select('g'+c+'cv'));const r=el('div','row');r.append(knob('g'+c+'off',true),knob('g'+c+'lvl'),knob('g'+c+'amt',true),knob('g'+c+'pan',true));col.appendChild(r);gc.appendChild(col)}
+  // compact: SOURCE on its own line, MODE and CONTROL side by side, their names as the menus' tooltips (room for the COMPLEX OSCILLATOR on the same page)
+  const sel=[select('g'+c+'src','SOURCE'),select('g'+c+'mode'),select('g'+c+'cv')];sel.forEach(x=>{const nm=x.querySelector('.nm');x.title=x.querySelector('select').title=nm.textContent+' '+L[c];nm.remove()});
+  const two=el('div','lpg2');two.append(sel[1],sel[2]);col.append(hd,sel[0],two);const r=el('div','row');r.append(knob('g'+c+'off',true),knob('g'+c+'lvl'),knob('g'+c+'amt',true),knob('g'+c+'pan',true));col.appendChild(r);gc.appendChild(col)}
 s=section(V,'FUNCTION GENERATORS','var(--func)');const fc=el('div','cols');s.appendChild(fc);
 for(let i=0;i<4;i++){const col=el('div','col');const hd=el('div','colhead',L[i]);const m=el('div','meter','<i></i>');hd.appendChild(m);fgM.push(m.firstChild);
   const r=el('div','row');r.append(knob('f'+i+'att'),knob('f'+i+'dec',true));col.append(hd,r,select('f'+i+'mode'),select('f'+i+'trig'));fc.appendChild(col)}
@@ -1652,21 +1657,23 @@ function fader(id,name,cap){const i=IDX[id],d=D[i];const c=el('div','ctl fad');c
 
 const V=__pg('VOICE');
 const W='#f4f2ec',O='#e8702a',BL='#3f6db3',BK='#2a2a2a';
+// switches and menus stacked so the VCOs, NOISE and the VCF share one page
+const stack=a=>{const t=el('div','tstack');a.forEach(x=>t.appendChild(x));return t};
 let s=section(V,'VCO 1','var(--hdr)');
 grp(s,null,[fader('v1co','COARSE',W),fader('v1fi','FINE',W),fader('v1sh','FM S/H',O),fader('v1fm2','FM VCO2 SINE',O),fader('v1env','FM ADSR',O)]);
-grp(s,null,[toggle('v1kbd'),toggle('v1lf')]);
+grp(s,null,[stack([toggle('v1kbd'),toggle('v1lf')])]);
 s=section(V,'VCO 2','var(--hdr)');
 grp(s,null,[fader('v2co','COARSE',W),fader('v2fi','FINE',W),fader('v2pw','PW',BL),fader('v2pwm','PWM VCO3',BL),fader('v2fm1','FM VCO1 SQ',O),fader('v2sh','FM S/H',O),fader('v2env','FM ADSR',O)]);
-grp(s,null,[toggle('v2kbd'),toggle('v2lf'),toggle('v2sync')]);
+grp(s,null,[stack([toggle('v2kbd'),toggle('v2lf'),toggle('v2sync')])]);
 s=section(V,'VCO 3','var(--hdr)');
 grp(s,null,[fader('v3co','COARSE',W),fader('v3fi','FINE',W),fader('v3pw','PW',BL),fader('v3noise','FM NOISE',O),fader('v3env','FM ADSR',O)]);
-grp(s,null,[toggle('v3kbd'),toggle('v3lf')]);
+grp(s,null,[stack([toggle('v3kbd'),toggle('v3lf')])]);
 s=section(V,'NOISE / RING MOD / SAMPLE & HOLD','var(--hdr)');
 grp(s,null,[fader('ncol','NOISE COLOR',W),fader('shclk','S/H CLOCK',W),fader('shlag','S/H LAG',W)]);
-grp(s,null,[select('rm1'),select('rm2'),select('shin'),select('shtrig')]);
+grp(s,null,[stack([select('rm1'),select('rm2')]),stack([select('shin'),select('shtrig')])]);
 s=section(V,'VCF','var(--hdr)',true);
 grp(s,'AUDIO MIXER',[fader('fring','RING',BK),fader('fv1','VCO 1',BK),fader('fv2','VCO 2',BK),fader('fv3','VCO 3',BK),fader('fnoise','NOISE',BK)]);
-grp(s,'WAVES',[select('fv1w'),select('fv2w'),select('fv3w')]);
+grp(s,'WAVES',[stack([select('fv1w'),select('fv2w'),select('fv3w')])]);
 grp(s,'FILTER',[fader('cutoff','INITIAL FREQ',W),fader('res','RESONANCE',W),fader('fkbd','FM KBD',O),fader('fenv','FM ADSR',O),fader('ffm2','FM VCO2 SINE',O),fader('fsh','FM S/H',O)]);
 s=section(V,'ENVELOPES / VCA','var(--hdr)',true);
 const fMeter=el('div','meter','<i></i>'),lMeter=el('div','meter','<i></i>');
