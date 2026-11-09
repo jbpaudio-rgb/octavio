@@ -546,11 +546,11 @@ function bar(id,vertical){const i=IDX[id];const uni=D[i].mn>=0;const b=el('div',
   const update=()=>{const v=P[i];f.classList.toggle('neg',v<0);if(vertical&&uni){f.style.top=(100-v*100)+'%';f.style.height=(v*100)+'%'}
     else if(vertical){const h=Math.abs(v)*50;f.style.top=(v>=0?50-h:50)+'%';f.style.height=h+'%'}
     else{const w=Math.abs(v)*50;f.style.left=(v>=0?50:50-w)+'%';f.style.width=w+'%'}};
-  let x0=0,v0=0,wr=1;
-  const set=e=>{const r=b.getBoundingClientRect();if(!vertical){let v=Math.max(-1,Math.min(1,v0+2*(e.clientX-x0)/wr));if(Math.abs(v)<.03&&Math.abs(v0)>=.03)v=0;setP(i,v);return}   // horizontal: drag from where it is
-    if(uni){setP(i,1-(e.clientY-r.top)/r.height);return}let v=1-2*(e.clientY-r.top)/r.height;if(Math.abs(v)<.06)v=0;setP(i,v)};
+  // every bar drags from its current value (never jumps to the touch point: inside the zoomed panels iPad Safari can misplace it)
+  let x0=0,y0=0,v0=0,len=1;const mn=uni?0:-1;
+  const set=e=>{const d=vertical?(y0-e.clientY):(e.clientX-x0);let v=Math.max(mn,Math.min(1,v0+(1-mn)*d/len));if(!uni&&Math.abs(v)<.03&&Math.abs(v0)>=.03)v=0;setP(i,v)};
   let last=0;b.addEventListener('pointerdown',e=>{const now=Date.now();if(now-last<300){setP(i,uni?D[i].df:0);last=0;return}last=now;b.setPointerCapture(e.pointerId);
-    x0=e.clientX;v0=P[i];wr=Math.max(220,b.getBoundingClientRect().width||1);/* at least 110 px of travel each way: fine control on small bars */if(vertical)set(e)});
+    const r=b.getBoundingClientRect();x0=e.clientX;y0=e.clientY;v0=P[i];len=vertical?Math.max(140,r.height):Math.max(220,r.width)});
   b.addEventListener('pointermove',e=>{if(b.hasPointerCapture(e.pointerId))set(e)});views.push({i,update});update();b.dataset.p=id;return b}
 function section(parent,title,color,wide){const s=el('div','sec'+(wide?' wide':''));const h=el('h2',null,title);if(color&&color.indexOf('var(')<0)h.style.background=color;const inn=el('div','in');s.append(h,inn);parent.appendChild(s);return inn}
 function grp(parent,cap,items){const g=el('div','grp');if(cap)g.appendChild(el('div','cap',cap));const r=el('div','row');items.forEach(x=>r.appendChild(x));g.appendChild(r);parent.appendChild(g);return g}
