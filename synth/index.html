@@ -343,6 +343,7 @@ body.touch #plug.nokb{grid-template-rows:auto minmax(0,1fr) auto}
 /* rotary switches (MINI range and waveform) and switches stacked in a column */
 .ctl.rot{width:72px}.rotk{width:70px;height:66px}.rotk text{font-family:var(--f-label);font-weight:700;font-size:9.5px;letter-spacing:.02em}
 .tstack{display:flex;flex-direction:column;align-items:flex-start;gap:0;justify-content:center;min-height:58px}.tstack .tog{padding:2px 4px}
+.gcolumn{display:flex;flex-direction:column;gap:4px}
 
 /* ===================== Touch view (iPad / iPhone) ===================== */
 #tabbar{display:none}
@@ -504,11 +505,14 @@ function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className
 // a rotary switch for a choice (like the Minimoog's RANGE and WAVEFORM): the positions printed around it, it clicks from one to the next.
 // Drag up or down to turn it, or tap it to step to the next position.
 function rotary(id,name,labels){const i=IDX[id],d=D[i],n=Math.round(d.mx-d.mn)+1;const c=el('div','ctl rot');const nm=el('div','nm',name||d.nm),vl=el('div','vl');
-  const ang=j=>n>1?-135+270*j/(n-1):0;const sk=SKIN_BODY[__skin]?__skin:'moog';let marks='';
+  const ang=j=>n>1?-135+270*j/(n-1):0;let marks='';
+  // the engine's own knob, or a plain black one with a white line like its other knobs
+  const body=SKIN_BODY[__skin]||'<defs><radialGradient id="kbP" cx=".38" cy=".3" r=".75"><stop offset="0" stop-color="#4a4a4a"/><stop offset=".7" stop-color="#141414"/></radialGradient></defs><circle cx="30" cy="30" r="17" fill="url(#kbP)" stroke="#000" stroke-width="1"/>',
+    ptr=SKIN_PTR[__skin]||'<line x1="30" y1="30" x2="30" y2="15" stroke="#f2efe6" stroke-width="2.6" stroke-linecap="round"/>';
   for(let j=0;j<n;j++){const a=ang(j)*Math.PI/180,s=Math.sin(a),co=Math.cos(a);
     marks+=`<line x1="${(30+21*s).toFixed(2)}" y1="${(30-21*co).toFixed(2)}" x2="${(30+25*s).toFixed(2)}" y2="${(30-25*co).toFixed(2)}" stroke-width="2" stroke-linecap="round"/>`+
       `<text x="${(30+33*s).toFixed(2)}" y="${(30-33*co+3).toFixed(2)}" text-anchor="middle">${(labels&&labels[j])||d.ch[j]}</text>`}
-  const k=el('div','fwknob rotk','<svg viewBox="-14 -12 88 84" aria-hidden="true"><g class="tk">'+marks+'</g>'+SKIN_BODY[sk]+'<g class="pt">'+SKIN_PTR[sk]+'</g></svg>');
+  const k=el('div','fwknob rotk','<svg viewBox="-14 -12 88 84" aria-hidden="true"><g class="tk">'+marks+'</g>'+body+'<g class="pt">'+ptr+'</g></svg>');
   const tk=k.querySelectorAll('.tk line'),tx=k.querySelectorAll('.tk text'),pt=k.querySelector('.pt');
   const update=()=>{const j=Math.round(P[i]-d.mn);pt.setAttribute('transform','rotate('+ang(j).toFixed(1)+' 30 30)');
     tk.forEach((l,q)=>l.setAttribute('stroke',q===j?'#f2efe6':'#4a4a4a'));tx.forEach((t,q)=>t.setAttribute('fill',q===j?'#f2efe6':'#8a877f'));vl.textContent=fmt(i,P[i])};
@@ -2524,10 +2528,17 @@ __bind(D,IDX,P,fmt,SRC,DST,DSTP);
 
 const V=__pg('VOICE');
 let s=section(V,'VCO 1 / VCO 2 / MIXER','var(--hdr)',true);
-grp(s,'VCO 1',[select('v1wave'),select('v1scale'),knob('v1pw',true,'PW')]);
-grp(s,'VCO 2',[select('v2wave'),select('v2scale'),knob('v2pitch',true,'PITCH')]);
-grp(s,'MIXER',[knob('v1lvl',false,'VCO 1'),knob('v2lvl',false,'VCO 2')]);
-grp(s,'FREQUENCY MOD',[knob('fmmg',true,'MG'),knob('fmeg',true,'EG 1'),knob('porta',false,'PORTA'),knob('tune',true,'TUNE')]);
+// two columns: VCO 1 over the frequency modulation, VCO 2 over the mixer; waveform and scale are rotary switches as on the panel
+const col=a=>{const c=el('div','gcolumn');a.forEach(x=>c.appendChild(x));return c};
+const SC=['32','16','8','4'];
+const vc1=grp(el('div'),'VCO 1',[rotary('v1wave',null,['TRI','SAW','PUL','NOI']),rotary('v1scale',null,SC),knob('v1pw',true,'PW')]);
+const fmg=grp(el('div'),'FREQUENCY MOD',[knob('fmmg',true,'MG'),knob('fmeg',true,'EG 1'),knob('porta',false,'PORTA'),knob('tune',true,'TUNE')]);
+const vc2=grp(el('div'),'VCO 2',[rotary('v2wave',null,['SAW','SQR','NAR','RING']),rotary('v2scale',null,SC),knob('v2pitch',true,'PITCH')]);
+const mxg=grp(el('div'),'MIXER',[knob('v1lvl',false,'VCO 1'),knob('v2lvl',false,'VCO 2')]);
+s.append(col([vc1,fmg]),col([vc2,mxg]));
+s=section(V,'MODULATION GENERATOR','var(--hdr)');
+grp(s,'MG',[knob('mgshape',false,'WAVEFORM'),knob('mgfreq',false,'FREQ')]);
+grp(s,'S&H / TRIGGER',[rotary('shclk',null,['MG','KEYS']),select('trig')]);
 s=section(V,'HIGH PASS / LOW PASS','var(--hdr)',true);
 grp(s,null,[knob('drive',false,'DRIVE')]);
 grp(s,'HIGH PASS',[knob('hpf',false,'CUTOFF'),knob('hpk',false,'PEAK'),knob('hmg',true,'MG'),knob('heg',true,'EG 2')]);
@@ -2536,10 +2547,6 @@ s=section(V,'ENVELOPES','var(--hdr)');
 const fMeter=el('div','meter','<i></i>'),lMeter=el('div','meter','<i></i>');
 const g1=grp(s,'EG 1',[knob('e1d',true,'DELAY'),knob('e1a',true,'ATTACK'),knob('e1r',true,'RELEASE')]);g1.firstChild.appendChild(fMeter);
 const g2=grp(s,'EG 2',[knob('e2h',true,'HOLD'),knob('e2a',true,'ATTACK'),knob('e2d',true,'DECAY'),knob('e2s',true,'SUSTAIN'),knob('e2r',true,'RELEASE')]);g2.firstChild.appendChild(lMeter);
-s=section(V,'MODULATION GENERATOR','var(--hdr)');
-grp(s,'MG',[knob('mgshape',false,'WAVEFORM'),knob('mgfreq',false,'FREQUENCY')]);
-grp(s,'S&H / TRIGGER',[select('shclk'),select('trig')]);
-s.appendChild(el('div','hint','Turn LPF PEAK past 8 for the scream. MG TRI, MG SQUARE and MS S&H are also sources in the MOD matrix.'));
 
 __buildShared();
 
