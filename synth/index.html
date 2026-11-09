@@ -550,7 +550,7 @@ function bar(id,vertical){const i=IDX[id];const uni=D[i].mn>=0;const b=el('div',
   const set=e=>{const r=b.getBoundingClientRect();if(!vertical){let v=Math.max(-1,Math.min(1,v0+2*(e.clientX-x0)/wr));if(Math.abs(v)<.03&&Math.abs(v0)>=.03)v=0;setP(i,v);return}   // horizontal: drag from where it is
     if(uni){setP(i,1-(e.clientY-r.top)/r.height);return}let v=1-2*(e.clientY-r.top)/r.height;if(Math.abs(v)<.06)v=0;setP(i,v)};
   let last=0;b.addEventListener('pointerdown',e=>{const now=Date.now();if(now-last<300){setP(i,uni?D[i].df:0);last=0;return}last=now;b.setPointerCapture(e.pointerId);
-    x0=e.clientX;v0=P[i];wr=b.getBoundingClientRect().width||1;if(vertical)set(e)});
+    x0=e.clientX;v0=P[i];wr=Math.max(220,b.getBoundingClientRect().width||1);/* at least 110 px of travel each way: fine control on small bars */if(vertical)set(e)});
   b.addEventListener('pointermove',e=>{if(b.hasPointerCapture(e.pointerId))set(e)});views.push({i,update});update();b.dataset.p=id;return b}
 function section(parent,title,color,wide){const s=el('div','sec'+(wide?' wide':''));const h=el('h2',null,title);if(color&&color.indexOf('var(')<0)h.style.background=color;const inn=el('div','in');s.append(h,inn);parent.appendChild(s);return inn}
 function grp(parent,cap,items){const g=el('div','grp');if(cap)g.appendChild(el('div','cap',cap));const r=el('div','row');items.forEach(x=>r.appendChild(x));g.appendChild(r);parent.appendChild(g);return g}
@@ -560,7 +560,7 @@ function fader(id,name,cap){const i=IDX[id],d=D[i];const c=el('div','ctl fad');c
   // grab anywhere and drag: the value moves with the finger from where it was, it never jumps to the touch point
   let y0=0,v0=0,hr=1;const set=e=>{const t=Math.min(1,Math.max(0,v0+(y0-e.clientY)/hr));setP(i,d.mn+t*(d.mx-d.mn))};
   let last=0;tr.addEventListener('pointerdown',e=>{const now=Date.now();if(now-last<300){setP(i,d.df);last=0;return}last=now;tr.setPointerCapture(e.pointerId);__bubShow(i);
-    const r=tr.getBoundingClientRect(),sc=r.height/(tr.offsetHeight||r.height),kh=(k.offsetHeight||14)*sc;hr=Math.max(20,r.height-kh);y0=e.clientY;v0=(P[i]-d.mn)/(d.mx-d.mn)});
+    const r=tr.getBoundingClientRect(),sc=r.height/(tr.offsetHeight||r.height),kh=(k.offsetHeight||14)*sc;hr=Math.max(140,r.height-kh);y0=e.clientY;v0=(P[i]-d.mn)/(d.mx-d.mn)});
   tr.addEventListener('pointermove',e=>{if(tr.hasPointerCapture(e.pointerId))set(e)});__hold(tr,i);
   tr.addEventListener('keydown',e=>{const st=(d.mx-d.mn)/50;if(e.key==='ArrowUp'){setP(i,P[i]+st);e.preventDefault()}if(e.key==='ArrowDown'){setP(i,P[i]-st);e.preventDefault()}});
   views.push({i,update});update();c.dataset.p=id;return c}
