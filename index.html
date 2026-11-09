@@ -351,6 +351,7 @@ body.touch #plug.nokb{grid-template-rows:auto minmax(0,1fr) auto}
 .holdb{display:inline-flex;align-items:center;gap:7px;padding:4px 12px}.holdb i{width:8px;height:8px;border-radius:50%;background:var(--ledoff)}
 .holdb.on{background:var(--led);border-color:var(--led);color:#000}.holdb.on i{background:#fff;box-shadow:0 0 6px #fff}
 body.touch .holdb{min-height:40px;flex:1;justify-content:center}
+.fad.fadn{width:34px}.fad.fadn .nm{font-size:10px;letter-spacing:.02em}
 
 /* ===================== Touch view (iPad / iPhone) ===================== */
 #tabbar{display:none}
@@ -836,7 +837,9 @@ function __regroup(){const pages=Object.entries(__pages);const bands=[];
 let __bandList=null,__bandsAll=null,__pageZ=.74;
 function __repaginate(){if(!__bandsAll)return;const cur=[...subTabs.children].findIndex(b=>b.classList.contains('on'));engBody.innerHTML='';__bandList=__bandsAll;__paginate();__showPageN(Math.min(Math.max(cur,0),subTabs.children.length-1));fitAll()}
 function __showPageN(n){const b=subTabs.children[n];if(b)__showSub(b.dataset.n)}
-function __paginate(){if(!__bandList)return;const wrap=engBody.closest('.fitwrap');const Z=__pageZ;engBody.style.zoom=Z;
+function __paginate(){if(!__bandList)return;const wrap=engBody.closest('.fitwrap');const Z=__pageZ;
+  if(wrap.firstElementChild)wrap.firstElementChild.style.zoom=1;   // measure unzoomed: a zoom left from the last fit would squeeze the width and wrap the bands
+  engBody.style.zoom=Z;
   const H=wrap.clientHeight/Z,W=wrap.clientWidth/Z;if(!H){__bandList=null;return}let w0=0;const pages=[];let cur=null;
   const newPage=()=>{if(cur)cur.hidden=true;cur=el('div','engpage');engBody.appendChild(cur);pages.push({pg:cur,titles:[]})};newPage();
   __bandList.forEach(b=>{const P_=pages[pages.length-1];cur.appendChild(b);
@@ -2317,6 +2320,8 @@ function fader(id,name,cap){const i=IDX[id],d=D[i];const c=el('div','ctl fad');c
   tr.addEventListener('keydown',e=>{const st=(d.mx-d.mn)/50;if(e.key==='ArrowUp'){setP(i,P[i]+st);e.preventDefault()}if(e.key==='ArrowDown'){setP(i,P[i]-st);e.preventDefault()}});
   views.push({i,update});update();return c}
 
+// (this standalone page shows the rotary switches as menus; the app has its own rotary() and draws them as knobs)
+if(typeof window.rotary!=='function')window.rotary=(id,name)=>select(id,name);
 // ===================== Pages =====================
 
 const V=__pg('VOICE');
@@ -2324,18 +2329,21 @@ const capI='#d8432c',capII='#3f6db3',W='#e9e4d8',Y='#e2b437';
 const fMeter=el('div','meter','<i></i>'),lMeter=el('div','meter','<i></i>');
 for(const [p,n,cap] of [['a','I',capI],['b','II',capII]]){
  const s=section(V,'CHANNEL '+n,'var(--hdr)',true);
- grp(s,'VCO',[select(p+'feet'),fader(p+'pw','PW',cap),fader(p+'pwm','PWM',cap),fader(p+'sq','SQUARE',cap),fader(p+'saw','SAW',cap),fader(p+'sine','SINE',cap),fader(p+'noise','NOISE',cap)]);
+ grp(s,'VCO',[rotary(p+'feet',null,['16','8','4']),fader(p+'pw','PW',cap),fader(p+'pwm','PWM',cap),fader(p+'sq','SQUARE',cap),fader(p+'saw','SAW',cap),fader(p+'sine','SINE',cap),fader(p+'noise','NOISE',cap)]);
  grp(s,'FILTERS',[fader(p+'hpf','HPF',cap),fader(p+'hres','RES',cap),fader(p+'lpf','LPF',cap),fader(p+'lres','RES',cap)]);
  const fg=grp(s,'FILTER ENV',[fader(p+'il','IL',W),fader(p+'al','AL',W),fader(p+'fa','A',W),fader(p+'fd','D',W),fader(p+'fr','R',W)]);
  const ag=grp(s,'VCA ENV',[fader(p+'aa','A',W),fader(p+'ad','D',W),fader(p+'as','S',W),fader(p+'ar','R',W)]);
  if(p==='a'){fg.firstChild.appendChild(fMeter);ag.firstChild.appendChild(lMeter)}
- grp(s,'OUTPUT',[fader(p+'brill','BRILLIANCE',Y),fader(p+'lvl','LEVEL',Y)]);}
+ grp(s,'OUTPUT',[fader(p+'brill','BRILL',Y),fader(p+'lvl','LEVEL',Y)]);}
 let s=section(V,'SUB-OSC / RING / TOUCH','var(--hdr)',true);
 grp(s,'SUB-OSC',[fader('sospd','SPEED',W),select('sofn'),fader('sovco','VCO',W),fader('sovcf','VCF',W),fader('sovca','VCA',W)]);
 grp(s,'RING MOD',[fader('rmspd','SPEED',W),fader('rmdep','DEPTH',W),fader('rmatt','A',W),fader('rmdec','D',W)]);
 grp(s,'TOUCH',[fader('tibr','BRILL',Y),fader('tilvl','LEVEL',Y)]);
-grp(s,'COMMON',[fader('det','DETUNE II',W),fader('pwmspd','PWM SPEED',W),fader('porta','PORTA',W),fader('tune','TUNE',W),select('chorus'),select('trig')]);
+const stack=a=>{const t=el('div','tstack');a.forEach(x=>t.appendChild(x));return t};
+grp(s,'COMMON',[fader('det','DETUNE',W),fader('pwmspd','PWM SPD',W),fader('porta','PORTA',W),fader('tune','TUNE',W),stack([select('chorus'),select('trig')])]);
 const vLeds=el('div','vleds');for(let i=0;i<8;i++)vLeds.appendChild(el('i'));grp(s,'VOICES',[vLeds]);
+// narrower faders (as on the CS-80's long panel) so each channel fits in one row
+V.querySelectorAll('.fad').forEach(f=>f.classList.add('fadn'));
 // Ribbon: touch and slide to bend; springs back on release
 s=section(V,'RIBBON CONTROLLER','var(--hdr)',true);
 const rib=el('div','ribbon','<span>TOUCH AND SLIDE</span><i></i>');s.appendChild(rib);grp(s,null,[fader('ribrng','RANGE',W)]);
@@ -5094,6 +5102,6 @@ window.__groove={get wasm(){return WASM},get T(){return T},META,show,play,stop,g
 })();
 
 </script>
-<script>window.__BUILD="de7f55ce7b";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").then(r=>r.update()).catch(()=>{}));
+<script>window.__BUILD="bcd55006dc";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").then(r=>r.update()).catch(()=>{}));
 (function(){let busy=0;const chk=()=>{if(busy||!navigator.onLine)return;busy=1;fetch("version.json?"+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(j=>{busy=0;if(j&&j.v&&j.v!==window.__BUILD&&sessionStorage.getItem("octavio.reloaded")!==j.v){try{sessionStorage.setItem("octavio.reloaded",j.v)}catch(e){}location.reload()}}).catch(()=>{busy=0})};addEventListener("load",chk);document.addEventListener("visibilitychange",()=>{if(!document.hidden)chk()})})();</script>
 </body></html>
