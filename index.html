@@ -5094,5 +5094,6 @@ window.__groove={get wasm(){return WASM},get T(){return T},META,show,play,stop,g
 })();
 
 </script>
-<script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.__BUILD="de7f55ce7b";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").then(r=>r.update()).catch(()=>{}));
+(function(){let busy=0;const chk=()=>{if(busy||!navigator.onLine)return;busy=1;fetch("version.json?"+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(j=>{busy=0;if(j&&j.v&&j.v!==window.__BUILD&&sessionStorage.getItem("octavio.reloaded")!==j.v){try{sessionStorage.setItem("octavio.reloaded",j.v)}catch(e){}location.reload()}}).catch(()=>{busy=0})};addEventListener("load",chk);document.addEventListener("visibilitychange",()=>{if(!document.hidden)chk()})})();</script>
 </body></html>

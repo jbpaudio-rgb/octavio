@@ -3670,5 +3670,6 @@ midiBuild();var __midiReady=true;
 try{if(localStorage.getItem('octavio.midi.on')==='1'&&navigator.requestMIDIAccess)midiEnable().then(r=>midiStatus=r)}catch(e){}
 
 </script>
-<script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>window.__BUILD="e2859c6871";if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").then(r=>r.update()).catch(()=>{}));
+(function(){let busy=0;const chk=()=>{if(busy||!navigator.onLine)return;busy=1;fetch("version.json?"+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(j=>{busy=0;if(j&&j.v&&j.v!==window.__BUILD&&sessionStorage.getItem("octavio.reloaded")!==j.v){try{sessionStorage.setItem("octavio.reloaded",j.v)}catch(e){}location.reload()}}).catch(()=>{busy=0})};addEventListener("load",chk);document.addEventListener("visibilitychange",()=>{if(!document.hidden)chk()})})();</script>
 </body></html>
