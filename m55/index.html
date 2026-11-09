@@ -20,6 +20,7 @@ html,body{margin:0;background:#100f0e;font-size:14px;-webkit-text-size-adjust:10
   --f-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);display:flex;flex-direction:column;overflow:hidden;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
@@ -91,7 +92,7 @@ header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding-block
 .jw.out .jl{background:var(--silk);color:#141210}
 .jk{position:absolute;inset:0;border-radius:50%;touch-action:none;cursor:crosshair;
   background:radial-gradient(circle,#000 0 30%,#292826 33%,#b7b7b1 43%,#f0f0eb 51%,#88877f 63%,#3a3935 71%,transparent 74%)}
-.jk::after{content:"";position:absolute;inset:-9px;border-radius:50%}
+.jk::after{content:"";position:absolute;inset:-12px;border-radius:50%}
 .jk.hot{box-shadow:0 0 0 3px var(--lamp)}
 .lamp{position:absolute;width:13px;height:13px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle at 40% 35%,#5d3c1b,#26170a);box-shadow:inset 0 0 0 1px #000}
 .lamp.on{background:radial-gradient(circle at 40% 35%,#fff3cc,#ffae3d 45%,#b5560e);box-shadow:0 0 12px 3px rgba(255,174,61,.55)}
@@ -131,6 +132,7 @@ body.learn .kn{outline:1px dashed var(--lamp);outline-offset:2px}
 .filebtn{display:inline-flex;align-items:center;min-height:36px;padding:6px 10px;border:1px solid var(--line);border-radius:4px;background:#211f1b;font:600 14px var(--f-ui);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
 #preIO{width:100%;height:90px;margin-top:10px;background:#0d0c0b;color:var(--ink);border:1px solid var(--line);border-radius:4px;font:11px var(--f-mono)}
 #cables{position:absolute;left:0;top:0;z-index:5;pointer-events:none}
+#cables.dragging g:not(:last-child){opacity:.28}
 .ghost{position:absolute;z-index:4;border:2px dashed var(--lamp);border-radius:3px;pointer-events:none;background:rgba(255,174,61,.06)}
 .ghost.bad{border-color:var(--red);background:rgba(217,72,58,.08)}
 #kbdWrap{display:flex;gap:8px;padding-block:8px calc(8px + env(safe-area-inset-bottom,0px));height:118px;flex:none}
@@ -219,7 +221,8 @@ body.learn .kn{outline:1px dashed var(--lamp);outline-offset:2px}
     <h2>Patcher</h2>
     <ul>
       <li><b>Câble :</b> glisse d’une sortie (étiquette claire) vers une entrée, ou l’inverse. Une sortie peut alimenter plusieurs câbles ; une entrée n’en prend qu’un.</li>
-      <li><b>Débrancher :</b> touche l’entrée. Pour déplacer une fiche, glisse-la depuis l’entrée.</li>
+      <li><b>Débrancher :</b> touche l’entrée. Pour déplacer une fiche, glisse-la depuis l’entrée ; lâchée à côté d’une prise, elle revient à sa place. Pour déplacer le bout côté sortie, maintiens la sortie un instant puis glisse.</li>
+      <li><b>Prises serrées :</b> le câble s’aimante à la prise la plus proche ; les autres câbles pâlissent pendant que tu tires.</li>
       <li><b>Modules :</b> + Module ajoute à la première place libre (une rangée est créée si besoin). Glisse l’en-tête pour déplacer.</li>
       <li><b>Tensions :</b> 1 V/oct partout. Les enveloppes sortent 0 à 5 V : passe par l’atténuateur 995 pour doser. Une entrée 995 libre donne +5 V fixe.</li>
       <li><b>Zoom :</b> pincer à deux doigts ou − / +. Clavier d’ordi : A W S E D F T G Y H U J K, Z/X pour l’octave.</li>
@@ -1098,31 +1101,51 @@ function reqDraw(){ if(!cdraw){ cdraw=true; requestAnimationFrame(()=>{ cdraw=fa
 function toRack(cx,cy){ const r=rack.getBoundingClientRect(); return {x:(cx-r.left)/zoom,y:(cy-r.top)/zoom}; }
 function nextColor(){ colorIx=(colorIx+1)%PAL.length; return PAL[colorIx]; }
 
-let cdrag=null, hotJack=null;
-function jackDown(ev){ ev.preventDefault(); ev.stopPropagation();
-  const j=ev.currentTarget, mid=j.dataset.m, port=j.dataset.p;
-  let anchor={m:mid,p:port}, color=nextColor(), picked=null;
-  if(port[0]==='i'){ const c=S.cables.find(c=>c.to.m===mid&&c.to.p===port);
-    if(c){ picked=c; S.cables.splice(S.cables.indexOf(c),1); send({t:'dis',to:mid,i:+port.slice(1)}); anchor=c.from; color=c.color; } }
+let cdrag=null, hotJack=null, holdT=0;
+function jackEl(r){ return rack.querySelector(`.jk[data-m="${r.m}"][data-p="${r.p}"]`); }
+function inUse(r){ return r.p[0]==='i'?S.cables.some(c=>c.to.m===r.m&&c.to.p===r.p):S.cables.some(c=>c.from.m===r.m&&c.from.p===r.p); }
+/* nearest jack of the wanted direction, within a finger-sized radius; free inputs win over busy ones */
+function nearestJack(cx,cy,dir,skip){ const rb=rack.getBoundingClientRect(), R=Math.max(26,40*zoom); let best=null, bd=1e9;
+  for(const m of S.modules){ const d=DEFS[m.type], mp=modPos(m);
+    for(const port in d.jacks){ if(port[0]!==dir) continue; if(skip&&skip.m===m.id&&skip.p===port) continue; const it=d.jacks[port];
+      const x=rb.left+(mp.x+it.x)*zoom, y=rb.top+(mp.y+it.y)*zoom; let dd=Math.hypot(cx-x,cy-y); if(dd>R) continue;
+      if(dir==='i'&&inUse({m:m.id,p:port})) dd+=R*0.35; if(dd<bd){ bd=dd; best={m:m.id,p:port}; } } }
+  return best; }
+function startDrag(ev,anchor,color,picked){
   cdrag={anchor,color,picked,sx:ev.clientX,sy:ev.clientY,moved:false,pid:ev.pointerId,pt:toRack(ev.clientX,ev.clientY)};
-  window.addEventListener('pointermove',cMove); window.addEventListener('pointerup',cUp); window.addEventListener('pointercancel',cUp);
-  reqDraw(); }
-function jackAt(x,y){ const t=document.elementFromPoint(x,y); return t&&t.classList&&t.classList.contains('jk')?t:null; }
+  svg.classList.add('dragging'); reqDraw(); }
+function jackDown(ev){ ev.preventDefault(); ev.stopPropagation(); if(cdrag) return;
+  const j=ev.currentTarget, mid=j.dataset.m, port=j.dataset.p; try{ j.releasePointerCapture(ev.pointerId); }catch(_){}
+  window.addEventListener('pointermove',cMove); window.addEventListener('pointerup',cUp); window.addEventListener('pointercancel',cCancel);
+  if(port[0]==='i'){ const c=S.cables.find(c=>c.to.m===mid&&c.to.p===port);
+    if(c){ S.cables.splice(S.cables.indexOf(c),1); send({t:'dis',to:mid,i:+port.slice(1)}); startDrag(ev,c.from,c.color,c); return; }
+    startDrag(ev,{m:mid,p:port},nextColor(),null); return; }
+  startDrag(ev,{m:mid,p:port},nextColor(),null);
+  /* hold an output that has cables to grab the most recent one by its output end */
+  const own=S.cables.filter(c=>c.from.m===mid&&c.from.p===port);
+  if(own.length){ clearTimeout(holdT); holdT=setTimeout(()=>{ if(!cdrag||cdrag.moved||cdrag.picked) return; const c=own[own.length-1];
+    S.cables.splice(S.cables.indexOf(c),1); send({t:'dis',to:c.to.m,i:+c.to.p.slice(1)});
+    cdrag.anchor=c.to; cdrag.color=c.color; cdrag.picked=c; cdrag.held=true; if(navigator.vibrate) try{navigator.vibrate(12);}catch(_){}
+    $('#status').textContent='Câble saisi par la sortie : glisse vers une autre sortie'; reqDraw(); },380); } }
+function setHot(j){ if(hotJack&&hotJack!==j) hotJack.classList.remove('hot'); if(j) j.classList.add('hot'); hotJack=j; }
 function cMove(ev){ if(!cdrag||ev.pointerId!==cdrag.pid) return;
-  if(Math.hypot(ev.clientX-cdrag.sx,ev.clientY-cdrag.sy)>6) cdrag.moved=true;
+  if(Math.hypot(ev.clientX-cdrag.sx,ev.clientY-cdrag.sy)>8){ cdrag.moved=true; clearTimeout(holdT); }
   cdrag.pt=toRack(ev.clientX,ev.clientY); autoScroll(ev);
-  const j=jackAt(ev.clientX,ev.clientY); if(hotJack&&hotJack!==j) hotJack.classList.remove('hot');
-  if(j&&j.dataset.p[0]!==cdrag.anchor.p[0]){ j.classList.add('hot'); hotJack=j; } else hotJack=null;
+  const want=cdrag.anchor.p[0]==='o'?'i':'o', r=cdrag.moved?nearestJack(ev.clientX,ev.clientY,want):null;
+  setHot(r?jackEl(r):null); if(r){ const a=jackPos(r); if(a) cdrag.pt=a; }
   reqDraw(); }
-function cUp(ev){ if(!cdrag||ev.pointerId!==cdrag.pid) return;
-  window.removeEventListener('pointermove',cMove); window.removeEventListener('pointerup',cUp); window.removeEventListener('pointercancel',cUp);
-  if(hotJack){ hotJack.classList.remove('hot'); hotJack=null; }
-  const dg=cdrag; cdrag=null;
-  if(dg.picked&&!dg.moved){ toast('Câble débranché'); }
-  else { const j=jackAt(ev.clientX,ev.clientY);
-    if(j){ const r={m:j.dataset.m,p:j.dataset.p};
-      if(r.p[0]!==dg.anchor.p[0]){ const from=dg.anchor.p[0]==='o'?dg.anchor:r, to=dg.anchor.p[0]==='o'?r:dg.anchor; connect(from,to,dg.color); } } }
-  markCustom(); saveSoon(); drawCables(); }
+function endDrag(){ clearTimeout(holdT); window.removeEventListener('pointermove',cMove); window.removeEventListener('pointerup',cUp); window.removeEventListener('pointercancel',cCancel);
+  setHot(null); svg.classList.remove('dragging'); const dg=cdrag; cdrag=null; return dg; }
+function restore(c){ S.cables.push(c); send(conMsg(c)); }
+function cCancel(ev){ if(!cdrag||ev.pointerId!==cdrag.pid) return; const dg=endDrag(); if(dg.picked) restore(dg.picked); drawCables(); }
+function cUp(ev){ if(!cdrag||ev.pointerId!==cdrag.pid) return; const dg=endDrag();
+  if(dg.picked&&!dg.moved&&!dg.held){ toast('Câble débranché'); markCustom(); saveSoon(); drawCables(); return; }
+  const want=dg.anchor.p[0]==='o'?'i':'o', r=dg.moved||dg.held?nearestJack(ev.clientX,ev.clientY,want):null;
+  if(r){ const from=want==='i'?dg.anchor:r, to=want==='i'?r:dg.anchor;
+    const busy=S.cables.find(c=>c.to.m===to.m&&c.to.p===to.p);
+    connect(from,to,dg.color); if(busy) toast('Entrée occupée : l’ancien câble a été remplacé'); markCustom(); saveSoon(); }
+  else if(dg.picked){ restore(dg.picked); if(dg.moved) toast('Lâché à côté : le câble reste en place'); }
+  drawCables(); }
 function connect(from,to,color){
   const old=S.cables.find(c=>c.to.m===to.m&&c.to.p===to.p); if(old) S.cables.splice(S.cables.indexOf(old),1);
   const c={id:'c'+(S.cid++),from:{...from},to:{...to},color}; S.cables.push(c); send(conMsg(c)); }
