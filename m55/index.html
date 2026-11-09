@@ -138,6 +138,7 @@ body.learn .kn{outline:1px dashed var(--lamp);outline-offset:2px}
 #kbdWrap{display:flex;gap:8px;padding-block:8px calc(8px + env(safe-area-inset-bottom,0px));height:118px;flex:none}
 .octs{display:flex;flex-direction:column;gap:6px;justify-content:center;align-items:center}
 .octs button{width:44px;padding:0}
+#kbToggle{display:flex;align-items:center;gap:7px}
 #kHold{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:58px;padding:0;flex:none}
 #kHold.on{border-color:var(--lamp);color:var(--lamp)}
 .octs span{font-family:var(--f-mono);font-size:11px;color:var(--lamp)}
@@ -190,6 +191,7 @@ body.learn .kn{outline:1px dashed var(--lamp);outline-offset:2px}
     <button id="zOut" aria-label="Dézoomer">−</button>
     <button id="zIn" aria-label="Zoomer">+</button>
     <button id="cabOp" title="Transparence des câbles">Câbles</button>
+    <button id="kbToggle" aria-pressed="true" title="Afficher ou cacher le clavier"><span class="led on" id="kled"></span>Clavier</button>
     <button id="midiBtn" title="MIDI : apprendre un CC sur un potard"><span class="led" id="mled"></span>MIDI</button>
     <button id="ccForget" hidden>Oublier le CC</button>
     <button id="help" aria-label="Aide">?</button>
@@ -1273,6 +1275,10 @@ const holding=()=>hold||pedal;
 function releaseLatched(){ for(const l of latched) rawOff(l); latched.clear(); }
 function setHold(on){ hold=on; const b=$('#kHold'); b.classList.toggle('on',on); b.setAttribute('aria-pressed',String(on)); $('#hled').classList.toggle('on',on); if(!holding()) releaseLatched(); }
 $('#kHold').onclick=()=>setHold(!hold);
+function showKbd(on){ $('#kbdWrap').hidden=!on; $('#kled').classList.toggle('on',on); $('#kbToggle').setAttribute('aria-pressed',String(on));
+  if(on) buildKbd(); else { for(const [id,n] of kbPtr) if(n!=null) noteOff(n); kbPtr.clear(); }
+  try{ localStorage.setItem('octavio-m55-kbd',on?'1':'0'); }catch(_){} }
+$('#kbToggle').onclick=()=>showKbd($('#kbdWrap').hidden);
 function noteOn(n){ if(holding()&&physTotal===0&&latched.size) releaseLatched();
   if(latched.has(n)){ latched.delete(n); rawOff(n); }
   phys[n]=(phys[n]||0)+1; physTotal++; rawOn(n); }
@@ -1332,6 +1338,7 @@ function boot(){ let st=null; try{ st=JSON.parse(localStorage.getItem(KEY)||'nul
   S.rows=Math.max(3,S.rows||3);
   setCols(S.cols); $('#width').value=String(S.cols);
   zoom=fitZoom(); renderAll(); buildKbd(); }
+try{ if(localStorage.getItem('octavio-m55-kbd')==='0') showKbd(false); }catch(_){}
 let rzT=0; window.addEventListener('resize',()=>{ clearTimeout(rzT); rzT=setTimeout(buildKbd,150); });
 boot();
 </script>
