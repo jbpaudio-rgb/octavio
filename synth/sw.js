@@ -1,5 +1,5 @@
 // Offline copy: the page is fetched from the network first (so updates arrive), and from this cache without a connection
-const V='octavio-d9dd20038e',FILES=['./','index.html','manifest.webmanifest?v=cbfb1e8a','icon-180-cbfb1e8a.png','icon-192-cbfb1e8a.png','icon-512-cbfb1e8a.png'];
+const V='octavio-9ceb28ea26',FILES=['./','index.html','manifest.webmanifest?v=cbfb1e8a','icon-180-cbfb1e8a.png','icon-192-cbfb1e8a.png','icon-512-cbfb1e8a.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(FILES)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(n=>n!==V).map(n=>caches.delete(n)))));self.clients.claim()});
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;const u=new URL(e.request.url);
