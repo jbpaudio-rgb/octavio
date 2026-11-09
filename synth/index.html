@@ -1403,26 +1403,27 @@ __bind(D,IDX,P,fmt,SRC,DST,DSTP);
 const V=__pg('VOICE');
 let s=section(V,'POLY-MOD','var(--hdr)');
 grp(s,'SOURCES',[knob('pmfenv'),knob('pmoscb')]);
-grp(s,'DESTINATIONS',[toggle('pmfreqa'),toggle('pmpwa'),toggle('pmfilt')]);
+const stack=a=>{const t=el('div','tstack');a.forEach(x=>t.appendChild(x));return t};   // switches one above the other
+grp(s,'DESTINATIONS',[stack([toggle('pmfreqa'),toggle('pmpwa'),toggle('pmfilt')])]);
 s=section(V,'LFO / WHEEL-MOD','var(--hdr)');
-grp(s,'LFO',[knob('lfofreq'),toggle('lfosaw'),toggle('lfotri'),toggle('lfosq')]);
-grp(s,'WHEEL-MOD',[knob('wmmix',true),knob('wmamt'),toggle('wmfreqa'),toggle('wmfreqb'),toggle('wmpwa'),toggle('wmpwb'),toggle('wmfilt')]);
+grp(s,'LFO',[knob('lfofreq'),stack([toggle('lfosaw'),toggle('lfotri'),toggle('lfosq')])]);
+grp(s,'WHEEL-MOD',[knob('wmmix',true),knob('wmamt'),stack([toggle('wmfreqa'),toggle('wmfreqb'),toggle('wmfilt')]),stack([toggle('wmpwa'),toggle('wmpwb')])]);
 s=section(V,'OSCILLATOR A','var(--hdr)');
-grp(s,null,[knob('oafreq'),toggle('oasaw'),toggle('oapulse'),knob('oapw',true),toggle('oasync')]);
+grp(s,null,[knob('oafreq'),stack([toggle('oasaw'),toggle('oapulse'),toggle('oasync')]),knob('oapw',true)]);
 s=section(V,'OSCILLATOR B','var(--hdr)');
-grp(s,null,[knob('obfreq'),knob('obfine',true),toggle('obsaw'),toggle('obtri'),toggle('obpulse'),knob('obpw',true),toggle('oblo'),toggle('obkbd')]);
+grp(s,null,[knob('obfreq'),knob('obfine',true),stack([toggle('obsaw'),toggle('obtri'),toggle('obpulse')]),knob('obpw',true),stack([toggle('oblo'),toggle('obkbd')])]);
 s=section(V,'MIXER','var(--hdr)');
-grp(s,null,[knob('mxa'),knob('mxb'),knob('mxs'),select('suboct'),knob('mxn')]);
+grp(s,null,[knob('mxa'),knob('mxb'),knob('mxs'),rotary('suboct',null,['-1','-2']),knob('mxn')]);
 s=section(V,'FILTER','var(--hdr)',true);
 const fMeter=el('div','meter','<i></i>'),lMeter=el('div','meter','<i></i>');
-grp(s,null,[knob('cutoff'),knob('res'),knob('fenvamt'),select('kbd')]);
+grp(s,null,[knob('cutoff'),knob('res'),knob('fenvamt'),rotary('kbd')]);
 const fg=grp(s,'FILTER ENVELOPE',[knob('fatt',true),knob('fdec',true),knob('fsus',true),knob('frel',true)]);fg.firstChild.appendChild(fMeter);
 s=section(V,'AMPLIFIER','var(--hdr)');
 const ag=grp(s,'AMP ENVELOPE',[knob('aatt',true),knob('adec',true),knob('asus',true),knob('arel',true)]);ag.firstChild.appendChild(lMeter);
 s=section(V,'PERFORMANCE','var(--hdr)');
 const vLeds=el('div','vleds');for(let i=0;i<6;i++)vLeds.appendChild(el('i'));
 grp(s,'VOICES',[vLeds]);
-grp(s,null,[knob('tune',true),knob('glide'),knob('vintage'),knob('velamt',true),toggle('unison'),toggle('release'),select('trig')]);
+grp(s,null,[knob('tune',true),knob('glide'),knob('vintage'),knob('velamt',true),stack([toggle('unison'),toggle('release')]),select('trig')]);
 
 __buildShared();
 
