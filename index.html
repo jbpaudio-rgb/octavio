@@ -620,6 +620,7 @@ body.touch #plug.gsmp{grid-template-rows:auto minmax(0,1fr) auto}
 .gtop .genb.long{font-size:12px;letter-spacing:0}
 .gtop .genb.long{font-size:11.5px}.gtrk{padding-right:6px}
 .presetmenu.gpm{width:330px}
+.gstep.hold{box-shadow:0 0 0 3px var(--tc,#fff),0 0 14px var(--tc,#fff);z-index:3}
 </style>
 
 <div id="plug" data-gv="pat">
@@ -4688,13 +4689,17 @@ const routed={port:{postMessage(m){const tr=T[view.t];if(!tr)return;
     liveNote(view.t,m);wake(tr);if(tr.syn)tr.syn.port.postMessage(m);return}
   const n=view.kind==='fx'?tr.fx:tr.syn;if(m.t==='p'){dirty();if(view.kind!=='fx'&&tr.eng==='dr8')drawRail();if(tr.eng==='sp64')smpView()}if(n)n.port.postMessage(m);if(view.kind==='fx'&&(m.t==='p'||m.t==='perm'))routeFx(view.t)}}};
 node=routed;
-// keys pressed while a step is selected (and not recording) write that step's note(s)
-const heldKeys=new Set();
+// a note played (screen keys or MIDI) while a step is held down, or selected, goes into that step (not while recording).
+// Held: the first note replaces the step, the next ones while it is still held make a chord. Selected: same, with the keys held together.
+const heldKeys=new Set();let holdStep=-1,holdUsed=0,holdT=0,holdK=-1,holdPid=null;
+function stepWrite(t,n,v){const tr=T[t];if(t!==view.t||view.kind!=='pat'||tr.eng==='dr8'||(playing&&rec))return;
+  const k=holdStep>=0?holdStep:selStep;if(k<0)return;const p=tr.pats[song.pat];if(k>=p.len)return;const st=p.steps[k];
+  const chord=holdStep>=0?holdUsed>0:heldKeys.size>0;const nv={n,v:v==null?.85:v,l:st&&st[0]?st[0].l:1};
+  p.steps[k]=chord&&st?[...st.filter(x=>x.n!==n),nv].slice(0,6):[nv];if(holdStep>=0){holdUsed++;selStep=k}tr.lastNote=n;dirty();drawPat();drawRail()}
+function holdEnd(e){if(holdStep<0||(e&&e.pointerId!==holdPid))return;if(holdUsed){holdT=performance.now();holdK=holdStep}holdStep=-1;holdUsed=0;document.querySelectorAll('.gstep.hold').forEach(c=>c.classList.remove('hold'))}
+window.addEventListener('pointerup',holdEnd);window.addEventListener('pointercancel',holdEnd);
 const noteOn0=noteOn,noteOff0=noteOff;
-noteOn=function(n,v){const tr=T[view.t];
-  if(view.kind==='pat'&&selStep>=0&&tr.eng!=='dr8'&&!(playing&&rec)){const p=tr.pats[song.pat];const st=p.steps[selStep];
-    const nv={n,v:v==null?.85:v,l:st&&st[0]?st[0].l:1};p.steps[selStep]=heldKeys.size&&st?[...st.filter(x=>x.n!==n),nv].slice(0,6):[nv];tr.lastNote=n;dirty();drawPat()}
-  heldKeys.add(n);noteOn0(n,v)};
+noteOn=function(n,v){stepWrite(view.t,n,v);heldKeys.add(n);noteOn0(n,v)};
 noteOff=function(n){heldKeys.delete(n);noteOff0(n)};
 
 // ---------- audio: 8 x (engine -> FX chain -> volume -> pan) -> master -> limiter ----------
@@ -4875,12 +4880,13 @@ function drawPat(){const t=view.t,tr=T[t];gpanel.innerHTML='';patCells=[];const 
     tools.insertBefore(av,tools.firstChild);tools.insertBefore(ac,av);tools.insertBefore(el('span','gcap','ACCENT'),ac);drawDrumGrid(body,tr);return}
   // 16 steps
   const grid=el('div','gsteps');body.appendChild(grid);
-  for(let k=0;k<NST;k++){const st=p.steps[k];const c=el('button','gstep'+(st&&st.length?' hit':'')+(k===selStep?' sel':'')+(k>=p.len?' out':'')+(k%4===0?' beat':''));
+  for(let k=0;k<NST;k++){const st=p.steps[k];const c=el('button','gstep'+(st&&st.length?' hit':'')+(k===selStep?' sel':'')+(k===holdStep?' hold':'')+(k>=p.len?' out':'')+(k%4===0?' beat':''));
     c.setAttribute('aria-label','Step '+(k+1)+(st&&st.length?' '+st.map(x=>nn(x.n)).join(' '):' empty'));
     c.appendChild(el('span','gk',String(k+1)));
     if(st&&st.length){c.appendChild(el('span','gn',st.map(x=>nn(x.n)).join(' ')));const vb=el('span','gvb');const vi=el('i');vi.style.height=(st[0].v*100)+'%';vb.appendChild(vi);c.appendChild(vb);
       if(st[0].l>1){const lb=el('span','gl');lb.style.width='calc('+(Math.min(st[0].l,NST-k))*100+'% + '+(Math.min(st[0].l,NST-k)-1)*6+'px)';c.appendChild(lb)}}
-    c.onclick=()=>{if(k>=p.len)return;if(!st||!st.length){p.steps[k]=[{n:tr.lastNote,v:.8,l:1}];selStep=k;if(ctx&&tr.syn&&!playing){tr.syn.port.postMessage({t:'on',n:tr.lastNote,v:.8});tr.syn.port.postMessage({t:'off',n:tr.lastNote,at:ctx.currentTime+stepDur()})}}
+    c.onpointerdown=e=>{if(k>=p.len||tr.eng==='dr8')return;holdStep=k;holdUsed=0;holdPid=e.pointerId;c.classList.add('hold')};
+    c.onclick=()=>{if(k>=p.len||(k===holdK&&performance.now()-holdT<400))return;if(!st||!st.length){p.steps[k]=[{n:tr.lastNote,v:.8,l:1}];selStep=k;if(ctx&&tr.syn&&!playing){tr.syn.port.postMessage({t:'on',n:tr.lastNote,v:.8});tr.syn.port.postMessage({t:'off',n:tr.lastNote,at:ctx.currentTime+stepDur()})}}
       else if(selStep===k){p.steps[k]=null;selStep=-1}else selStep=k;dirty();drawPat();drawRail();drawPatBtns()};
     grid.appendChild(c);patCells.push({k,el:c})}
   // the selected step
@@ -4926,7 +4932,7 @@ function chSel(t,onChange){const tr=T[t];const s=el('select','gsel gmc');s.setAt
 const chSus=Array.from({length:16},()=>({on:false,held:new Set()}));
 function midiTrack(t,m){const tr=T[t];if(!tr.syn)return;
   if(tr.eng==='dr8'){if(m.t==='off')return;if(m.t==='on')m={t:'hit',tr:DR8_GM[m.n]!=null?DR8_GM[m.n]:((m.n-36)%8+8)%8}}
-  liveNote(t,m);wake(tr);tr.syn.port.postMessage(m);if(m.t==='on'||m.t==='hit')flashRail(t)}
+  liveNote(t,m);if(m.t==='on')stepWrite(t,m.n,m.v);wake(tr);tr.syn.port.postMessage(m);if(m.t==='on'||m.t==='hit')flashRail(t)}
 // a CC for track t: an effect it was learned for, otherwise the track's synth; on screen or not
 function ccTrack(t,key,b){const tr=T[t];if(!tr||(midiLearn&&midiTarget>=0)||key%128===64||key%128===120||key%128===123)return false;
   const fx=ccMap.fx&&ccMap.fx.get(key),sy=!fx&&ccMap[tr.eng]&&ccMap[tr.eng].get(key);if(!fx&&!sy)return false;
